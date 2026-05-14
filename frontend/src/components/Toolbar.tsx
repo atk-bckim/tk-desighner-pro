@@ -37,6 +37,41 @@ export function Toolbar() {
     input.click();
   };
 
+  const handlePreview = async () => {
+    const project = exportProject();
+    await fetch("/api/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: project.name,
+        canvas_width: project.canvasWidth,
+        canvas_height: project.canvasHeight,
+        widgets: project.widgets,
+      }),
+    });
+  };
+
+  const handleExport = async () => {
+    const project = exportProject();
+    const res = await fetch("/api/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: project.name,
+        canvas_width: project.canvasWidth,
+        canvas_height: project.canvasHeight,
+        widgets: project.widgets,
+      }),
+    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${project.name.replace(/ /g, "_")}.py`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="h-12 bg-gray-800 text-white flex items-center px-4 gap-4 shrink-0">
       <h1 className="font-bold text-lg">Tkinter Designer</h1>
@@ -57,6 +92,18 @@ export function Toolbar() {
         className="bg-gray-600 hover:bg-gray-700 px-3 py-1 rounded text-sm"
       >
         Load
+      </button>
+      <button
+        onClick={handlePreview}
+        className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm"
+      >
+        Preview
+      </button>
+      <button
+        onClick={handleExport}
+        className="bg-amber-600 hover:bg-amber-700 px-3 py-1 rounded text-sm"
+      >
+        Export .py
       </button>
     </div>
   );
