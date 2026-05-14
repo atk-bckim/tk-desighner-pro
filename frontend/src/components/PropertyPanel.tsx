@@ -1,5 +1,5 @@
 import { useDesignerStore } from "../store/designerStore";
-import { getEditableProps, getSpec } from "../utils/widgetDefaults";
+import { getEditableProps } from "../utils/widgetDefaults";
 
 export function PropertyPanel() {
   const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget } =
