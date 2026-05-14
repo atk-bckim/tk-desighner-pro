@@ -5,6 +5,7 @@ import { Toolbar } from "./components/Toolbar";
 import { Toolbox } from "./components/Toolbox";
 import { Canvas } from "./components/Canvas";
 import { PropertyPanel } from "./components/PropertyPanel";
+import { CodePreview } from "./components/CodePreview";
 import { useDesignerStore } from "./store/designerStore";
 import type { WidgetType } from "./types/widgets";
 
@@ -46,7 +47,10 @@ export default function App() {
         <Toolbar />
         <div className="flex flex-1 overflow-hidden">
           <Toolbox />
-          <Canvas />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <Canvas />
+            <CodePreview />
+          </div>
           <PropertyPanel />
         </div>
       </div>
