@@ -1,4 +1,5 @@
-import { DndContext, DragEndEvent, DragOverlay } from "@dnd-kit/core";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
 import { useState } from "react";
 import { Toolbar } from "./components/Toolbar";
 import { Toolbox } from "./components/Toolbox";
