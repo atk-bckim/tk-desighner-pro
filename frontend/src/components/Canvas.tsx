@@ -33,6 +33,44 @@ function getWidgetDynamicStyle(widget: WidgetInstance): React.CSSProperties {
   return style;
 }
 
+const ALIGN_THRESHOLD = 4;
+
+function computeGuides(
+  dragWidget: WidgetInstance,
+  absX: number,
+  absY: number,
+  allWidgets: WidgetInstance[],
+): { v: number[]; h: number[] } {
+  const v: number[] = [];
+  const h: number[] = [];
+
+  for (const w of allWidgets) {
+    if (w.id === dragWidget.id) continue;
+    const wX = w.parentId ? (allWidgets.find(p => p.id === w.parentId)?.x ?? 0) + w.x : w.x;
+    const wY = w.parentId ? (allWidgets.find(p => p.id === w.parentId)?.y ?? 0) + w.y : w.y;
+
+    // Vertical guides
+    for (const refX of [wX, wX + w.width, wX + w.width / 2]) {
+      for (const dragX of [absX, absX + dragWidget.width, absX + dragWidget.width / 2]) {
+        if (Math.abs(refX - dragX) < ALIGN_THRESHOLD) {
+          v.push(refX);
+        }
+      }
+    }
+
+    // Horizontal guides
+    for (const refY of [wY, wY + w.height, wY + w.height / 2]) {
+      for (const dragY of [absY, absY + dragWidget.height, absY + dragWidget.height / 2]) {
+        if (Math.abs(refY - dragY) < ALIGN_THRESHOLD) {
+          h.push(refY);
+        }
+      }
+    }
+  }
+
+  return { v: [...new Set(v)], h: [...new Set(h)] };
+}
+
 function renderWidgetContent(widget: WidgetInstance) {
   const text = String(widget.props.text ?? "");
   const fgColor = typeof widget.props.fg === "string" ? widget.props.fg : undefined;
@@ -91,6 +129,7 @@ function WidgetRenderer({
   renderChild,
   setActiveTab,
   onContextMenu,
+  onSetGuides,
 }: {
   widget: WidgetInstance;
   allWidgets: WidgetInstance[];
@@ -101,6 +140,7 @@ function WidgetRenderer({
   renderChild: (child: WidgetInstance) => React.ReactNode;
   setActiveTab: (notebookId: string, index: number) => void;
   onContextMenu: (e: React.MouseEvent, widgetId: string) => void;
+  onSetGuides?: (guides: { v: number[]; h: number[] }) => void;
 }) {
   const isContainer = widget.type === "Frame" || widget.type === "LabelFrame" || widget.type === "Notebook";
 
@@ -130,11 +170,25 @@ function WidgetRenderer({
         if (!moveRef.current) return;
         const dx = e.clientX - moveRef.current.startX;
         const dy = e.clientY - moveRef.current.startY;
-        onMove(widget.id, Math.max(0, moveRef.current.widgetX + dx), Math.max(0, moveRef.current.widgetY + dy));
+        const newX = Math.max(0, moveRef.current.widgetX + dx);
+        const newY = Math.max(0, moveRef.current.widgetY + dy);
+        onMove(widget.id, newX, newY);
+
+        // Compute alignment guides using absolute position
+        const absX = widget.parentId
+          ? (allWidgets.find(p => p.id === widget.parentId)?.x ?? 0) + newX
+          : newX;
+        const absY = widget.parentId
+          ? (allWidgets.find(p => p.id === widget.parentId)?.y ?? 0) + newY
+          : newY;
+        const updatedWidget = { ...widget, x: newX, y: newY };
+        const newGuides = computeGuides(updatedWidget, absX, absY, allWidgets);
+        onSetGuides?.({ v: newGuides.v, h: newGuides.h });
       };
 
       const handleMouseUp = () => {
         moveRef.current = null;
+        onSetGuides?.({ v: [], h: [] });
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
       };
@@ -142,7 +196,7 @@ function WidgetRenderer({
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [widget.id, widget.x, widget.y, widget.locked, onSelect, onMove],
+    [widget.id, widget.x, widget.y, widget.locked, onSelect, onMove, onSetGuides, allWidgets],
   );
 
   const createResizeHandler = useCallback(
@@ -267,6 +321,7 @@ export function Canvas() {
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetId: string } | null>(null);
   const [selRect, setSelRect] = useState<{ sx: number; sy: number; ex: number; ey: number } | null>(null);
+  const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
 
   const rootWidgets = widgets.filter(w => w.parentId === null);
 
@@ -333,6 +388,7 @@ export function Canvas() {
         onContextMenu={(e, widgetId) => {
           setContextMenu({ x: e.clientX, y: e.clientY, widgetId });
         }}
+        onSetGuides={setGuides}
       />
     );
   };
@@ -368,6 +424,12 @@ export function Canvas() {
             }}
           />
         )}
+        {guides.v.map((x, i) => (
+          <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-red-400 pointer-events-none z-50" style={{ left: x }} />
+        ))}
+        {guides.h.map((y, i) => (
+          <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-red-400 pointer-events-none z-50" style={{ top: y }} />
+        ))}
       </div>
     </div>
   );
