@@ -3,6 +3,7 @@ import { useDesignerStore } from "../store/designerStore";
 import type { WidgetInstance } from "../types/widgets";
 import { getAbsolutePosition } from "../utils/position";
 import { ContextMenu } from "./ContextMenu";
+import { Ruler } from "./Ruler";
 import React, { useRef, useCallback, useState, useEffect } from "react";
 
 function getWidgetDynamicStyle(widget: WidgetInstance): React.CSSProperties {
@@ -395,47 +396,56 @@ export function Canvas() {
 
   return (
     <div className="flex-1 overflow-auto bg-gray-900 p-4">
-      <div
-        ref={setNodeRef}
-        data-canvas="true"
-        className={`relative bg-white border-2 border-dashed ${
-          isOver ? "border-blue-400" : "border-gray-600"
-        }`}
-        style={{ width: canvasWidth * zoom, height: canvasHeight * zoom }}
-        onMouseDown={(e) => {
-          if (e.button !== 0) return;
-          if (e.target === e.currentTarget) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setSelRect({
-              sx: (e.clientX - rect.left) / zoom,
-              sy: (e.clientY - rect.top) / zoom,
-              ex: (e.clientX - rect.left) / zoom,
-              ey: (e.clientY - rect.top) / zoom,
-            });
-            selectWidget(null);
-          }
-        }}
-      >
-        <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: canvasWidth, height: canvasHeight, ...gridStyle }}>
-          {rootWidgets.map(renderWidget)}
-          {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} widgetId={contextMenu.widgetId} onClose={() => setContextMenu(null)} />}
-          {selRect && (
-            <div
-              className="absolute border border-blue-400 bg-blue-400/10 pointer-events-none"
-              style={{
-                left: Math.min(selRect.sx, selRect.ex),
-                top: Math.min(selRect.sy, selRect.ey),
-                width: Math.abs(selRect.ex - selRect.sx),
-                height: Math.abs(selRect.ey - selRect.sy),
-              }}
-            />
-          )}
-          {guides.v.map((x, i) => (
-            <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-red-400 pointer-events-none z-50" style={{ left: x }} />
-          ))}
-          {guides.h.map((y, i) => (
-            <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-red-400 pointer-events-none z-50" style={{ top: y }} />
-          ))}
+      <div className="inline-flex flex-col">
+        <div className="flex">
+          <div className="w-5 h-5 shrink-0" />
+          <Ruler length={canvasWidth} direction="horizontal" zoom={zoom} />
+        </div>
+        <div className="flex">
+          <Ruler length={canvasHeight} direction="vertical" zoom={zoom} />
+          <div
+            ref={setNodeRef}
+            data-canvas="true"
+            className={`relative bg-white border-2 border-dashed ${
+              isOver ? "border-blue-400" : "border-gray-600"
+            }`}
+            style={{ width: canvasWidth * zoom, height: canvasHeight * zoom }}
+            onMouseDown={(e) => {
+              if (e.button !== 0) return;
+              if (e.target === e.currentTarget) {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setSelRect({
+                  sx: (e.clientX - rect.left) / zoom,
+                  sy: (e.clientY - rect.top) / zoom,
+                  ex: (e.clientX - rect.left) / zoom,
+                  ey: (e.clientY - rect.top) / zoom,
+                });
+                selectWidget(null);
+              }
+            }}
+          >
+            <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: canvasWidth, height: canvasHeight, ...gridStyle }}>
+              {rootWidgets.map(renderWidget)}
+              {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} widgetId={contextMenu.widgetId} onClose={() => setContextMenu(null)} />}
+              {selRect && (
+                <div
+                  className="absolute border border-blue-400 bg-blue-400/10 pointer-events-none"
+                  style={{
+                    left: Math.min(selRect.sx, selRect.ex),
+                    top: Math.min(selRect.sy, selRect.ey),
+                    width: Math.abs(selRect.ex - selRect.sx),
+                    height: Math.abs(selRect.ey - selRect.sy),
+                  }}
+                />
+              )}
+              {guides.v.map((x, i) => (
+                <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-red-400 pointer-events-none z-50" style={{ left: x }} />
+              ))}
+              {guides.h.map((y, i) => (
+                <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-red-400 pointer-events-none z-50" style={{ top: y }} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
