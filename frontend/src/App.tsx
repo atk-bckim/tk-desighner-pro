@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Toolbar } from "./components/Toolbar";
 import { Toolbox } from "./components/Toolbox";
 import { Canvas } from "./components/Canvas";
@@ -12,6 +12,42 @@ import type { WidgetType } from "./types/widgets";
 export default function App() {
   const addWidget = useDesignerStore((s) => s.addWidget);
   const [draggingType, setDraggingType] = useState<WidgetType | null>(null);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const store = useDesignerStore.getState();
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (store.selectedId) {
+          store.snapshot();
+          store.removeWidget(store.selectedId);
+        }
+      }
+      if (e.key === "z" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault();
+        store.undo();
+      }
+      if (
+        (e.key === "y" && (e.ctrlKey || e.metaKey)) ||
+        (e.key === "z" && (e.ctrlKey || e.metaKey) && e.shiftKey)
+      ) {
+        e.preventDefault();
+        store.redo();
+      }
+      if (e.key === "d" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (store.selectedId) {
+          store.snapshot();
+          store.duplicateWidget(store.selectedId);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleDragEnd = (event: DragEndEvent) => {
     setDraggingType(null);
