@@ -49,7 +49,16 @@ export function Toolbar() {
           name: project.name,
           canvas_width: project.canvasWidth,
           canvas_height: project.canvasHeight,
-          widgets: project.widgets,
+          widgets: project.widgets.map(w => ({
+            id: w.id,
+            type: w.type,
+            parent_id: w.parentId,
+            x: w.x,
+            y: w.y,
+            width: w.width,
+            height: w.height,
+            props: w.props,
+          })),
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -68,7 +77,16 @@ export function Toolbar() {
           name: project.name,
           canvas_width: project.canvasWidth,
           canvas_height: project.canvasHeight,
-          widgets: project.widgets,
+          widgets: project.widgets.map(w => ({
+            id: w.id,
+            type: w.type,
+            parent_id: w.parentId,
+            x: w.x,
+            y: w.y,
+            width: w.width,
+            height: w.height,
+            props: w.props,
+          })),
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
