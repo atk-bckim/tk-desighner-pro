@@ -7,6 +7,7 @@ import { Canvas } from "./components/Canvas";
 import { PropertyPanel } from "./components/PropertyPanel";
 import { CodePreview } from "./components/CodePreview";
 import { ObjectTree } from "./components/ObjectTree";
+import { StatusBar } from "./components/StatusBar";
 import { useDesignerStore } from "./store/designerStore";
 import type { WidgetType } from "./types/widgets";
 
@@ -91,6 +92,7 @@ export default function App() {
           </div>
           <PropertyPanel />
         </div>
+        <StatusBar />
       </div>
       <DragOverlay>
         {draggingType ? (
