@@ -1,20 +1,69 @@
 import { useDroppable } from "@dnd-kit/core";
 import { useDesignerStore } from "../store/designerStore";
 import type { WidgetInstance } from "../types/widgets";
-import { getSpec } from "../utils/widgetDefaults";
 import React, { useRef, useCallback } from "react";
 
-const WIDGET_COLORS: Record<string, string> = {
-  Button: "bg-blue-900/60 border-blue-500",
-  Label: "bg-green-900/60 border-green-500",
-  Entry: "bg-yellow-900/60 border-yellow-500",
-  Text: "bg-yellow-900/60 border-yellow-500",
-  Checkbutton: "bg-purple-900/60 border-purple-500",
-  Radiobutton: "bg-pink-900/60 border-pink-500",
-  Listbox: "bg-orange-900/60 border-orange-500",
-  Scale: "bg-cyan-900/60 border-cyan-500",
-  Frame: "bg-gray-700/40 border-gray-400 border-dashed",
+const WIDGET_STYLES: Record<string, string> = {
+  Button: "bg-gray-100 border-gray-400 shadow-sm",
+  Label: "bg-transparent border-transparent border-0",
+  Entry: "bg-white border-gray-300",
+  Text: "bg-white border-gray-300",
+  Checkbutton: "bg-transparent border-transparent border-0",
+  Radiobutton: "bg-transparent border-transparent border-0",
+  Listbox: "bg-white border-gray-300",
+  Scale: "bg-gray-50 border-gray-200",
+  Frame: "bg-gray-50/50 border-gray-400 border-dashed",
+  LabelFrame: "bg-gray-50/50 border-gray-400",
+  OptionMenu: "bg-white border-gray-300",
+  Spinbox: "bg-white border-gray-300",
+  Scrollbar: "bg-gray-100 border-gray-300",
+  Separator: "bg-gray-400 border-transparent border-0",
 };
+
+function renderWidgetContent(widget: WidgetInstance) {
+  const text = String(widget.props.text ?? "");
+  switch (widget.type) {
+    case "Button":
+      return <span className="text-xs text-gray-700 font-medium truncate">{text || "Button"}</span>;
+    case "Label":
+      return <span className="text-xs text-gray-800 truncate">{text || "Label"}</span>;
+    case "Entry":
+      return <div className="w-full h-0.5 bg-gray-400 absolute bottom-0.5 left-0 right-0" />;
+    case "Text":
+      return <div className="absolute inset-1 text-xs text-gray-400 overflow-hidden">Text</div>;
+    case "Checkbutton":
+      return (
+        <div className="flex items-center gap-1.5 px-1">
+          <div className="w-3.5 h-3.5 border-2 border-gray-400 rounded-sm shrink-0" />
+          <span className="text-xs text-gray-700 truncate">{text || "Check"}</span>
+        </div>
+      );
+    case "Radiobutton":
+      return (
+        <div className="flex items-center gap-1.5 px-1">
+          <div className="w-3.5 h-3.5 border-2 border-gray-400 rounded-full shrink-0" />
+          <span className="text-xs text-gray-700 truncate">{text || "Radio"}</span>
+        </div>
+      );
+    case "Listbox":
+      return <div className="absolute inset-1 text-xs text-gray-500"><div className="border-b border-gray-200 pb-0.5">Item 1</div><div className="border-b border-gray-200 pb-0.5">Item 2</div></div>;
+    case "Scale":
+      return <div className="w-full flex items-center px-3"><div className="flex-1 h-1 bg-gray-300 rounded relative"><div className="w-3 h-3 bg-blue-500 rounded-full absolute -top-1 left-1/3" /></div></div>;
+    case "Separator":
+      return null;
+    case "Scrollbar":
+      return <div className="w-full h-full flex flex-col items-center py-1 gap-0.5"><div className="w-2 h-2 bg-gray-400 rounded-sm" /><div className="flex-1 w-2 bg-gray-300 rounded" /><div className="w-2 h-2 bg-gray-400 rounded-sm" /></div>;
+    case "OptionMenu":
+      return <div className="flex items-center justify-between w-full px-2"><span className="text-xs text-gray-600">{(String(widget.props.values ?? "")).split(",")[0] || "Select..."}</span><span className="text-xs text-gray-400">&#9660;</span></div>;
+    case "Spinbox":
+      return <div className="flex items-center w-full px-1"><span className="text-xs text-gray-600 flex-1">0</span><div className="flex flex-col"><span className="text-xs leading-none">&#9650;</span><span className="text-xs leading-none">&#9660;</span></div></div>;
+    case "Frame":
+    case "LabelFrame":
+      return null; // Container widgets render children
+    default:
+      return <span className="text-xs text-gray-500">{widget.type}</span>;
+  }
+}
 
 function WidgetRenderer({
   widget,
@@ -102,16 +151,13 @@ function WidgetRenderer({
     [widget.id, widget.width, widget.height, widget.x, widget.y, onResize, onMove],
   );
 
-  const color = WIDGET_COLORS[widget.type] || "bg-gray-700/60 border-gray-500";
-  const displayText = String(widget.props.text ?? widget.type);
-  const spec = getSpec(widget.type);
-
+  const color = WIDGET_STYLES[widget.type] || "bg-gray-100 border-gray-400";
   const isContainer = widget.type === "Frame" || widget.type === "LabelFrame";
 
   return (
     <div
-      className={`absolute border-2 ${color} rounded flex items-center justify-center cursor-move select-none overflow-hidden ${
-        isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-transparent" : ""
+      className={`absolute border ${color} rounded flex items-center justify-center cursor-move select-none overflow-hidden ${
+        isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent" : ""
       }`}
       style={{
         left: widget.x,
@@ -124,12 +170,15 @@ function WidgetRenderer({
     >
       {isContainer ? (
         <div className="relative w-full h-full">
+          {widget.type === "LabelFrame" && (
+            <span className="absolute -top-2.5 left-2 text-xs text-gray-600 bg-gray-50 px-1">
+              {String(widget.props.text ?? "") || "LabelFrame"}
+            </span>
+          )}
           {children}
         </div>
       ) : (
-        <span className="text-xs text-gray-300 truncate px-1">
-          {spec.defaultProps.text !== undefined ? displayText : widget.type}
-        </span>
+        renderWidgetContent(widget)
       )}
       {isSelected && (
         <>
