@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { WidgetInstance, WidgetType, Project } from "../types/widgets";
 import { createWidget, resetCounters } from "../utils/widgetDefaults";
+import { TEMPLATES } from "../templates";
 import { v4 as uuid } from "uuid";
 
 interface DesignerState {
@@ -46,6 +47,10 @@ interface DesignerState {
   addTab: (notebookId: string) => void;
   removeTab: (notebookId: string, tabId: string) => void;
   setActiveTab: (notebookId: string, index: number) => void;
+
+  tkTheme: string;
+  setTkTheme: (theme: string) => void;
+  loadTemplate: (templateKey: string) => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -305,5 +310,15 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
     set((s) => ({
       widgets: s.widgets.map(w => w.id === notebookId ? { ...w, props: { ...w.props, activeTab: index } } : w),
     }));
+  },
+
+  tkTheme: "default",
+  setTkTheme: (theme) => set({ tkTheme: theme }),
+
+  loadTemplate: (templateKey: string) => {
+    const template = TEMPLATES[templateKey];
+    if (!template) return;
+    const widgets = template.create();
+    set({ widgets, selectedIds: [], undoStack: [], redoStack: [] });
   },
 }));
