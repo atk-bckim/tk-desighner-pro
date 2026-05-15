@@ -4,12 +4,14 @@ from typing import Literal
 WidgetType = Literal[
     "Button", "Label", "Entry", "Text",
     "Checkbutton", "Radiobutton", "Listbox", "Scale", "Frame",
+    "LabelFrame", "OptionMenu", "Spinbox", "Scrollbar", "Separator",
 ]
 
 
 class WidgetInstance(BaseModel):
     id: str
-    type: WidgetType
+    type: str  # Use str instead of Literal to be flexible
+    parent_id: str | None = None
     x: float
     y: float
     width: float
