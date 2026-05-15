@@ -2,7 +2,7 @@ import { useDesignerStore } from "../store/designerStore";
 import { getEditableProps } from "../utils/widgetDefaults";
 
 export function PropertyPanel() {
-  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize } =
+  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack } =
     useDesignerStore();
 
   const widget = widgets.find((w) => w.id === selectedId);
@@ -120,6 +120,15 @@ export function PropertyPanel() {
           </div>
         </div>
       )}
+
+      {/* Z-Order */}
+      <div className="mt-3 border-t border-gray-700 pt-2">
+        <h3 className="text-xs font-semibold text-gray-400 mb-1">Z-Order</h3>
+        <div className="flex gap-1">
+          <button onClick={() => bringToFront(widget.id)} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded flex-1">To Front</button>
+          <button onClick={() => sendToBack(widget.id)} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded flex-1">To Back</button>
+        </div>
+      </div>
     </div>
   );
 }
