@@ -181,6 +181,12 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "orient", label: "Orientation", type: "select", options: ["horizontal", "vertical"] },
     ],
   },
+  Notebook: {
+    defaultWidth: 400,
+    defaultHeight: 300,
+    defaultProps: { activeTab: 0 },
+    editableProps: [],
+  },
 };
 
 export function getSpec(type: WidgetType): WidgetSpec {

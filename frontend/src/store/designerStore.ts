@@ -37,6 +37,10 @@ interface DesignerState {
   toggleSnap: () => void;
 
   alignWidgets: (ids: string[], direction: "left" | "right" | "top" | "bottom" | "centerH" | "centerV") => void;
+
+  addTab: (notebookId: string) => void;
+  removeTab: (notebookId: string, tabId: string) => void;
+  setActiveTab: (notebookId: string, index: number) => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -259,5 +263,24 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       });
       return { widgets: updated };
     });
+  },
+
+  addTab: (notebookId: string) => {
+    const tabs = get().widgets.filter(w => w.parentId === notebookId);
+    const tab = createWidget("Frame", 0, 30, notebookId);
+    tab.props.text = `Tab ${tabs.length + 1}`;
+    tab.width = 0;
+    tab.height = 0;
+    set((s) => ({ widgets: [...s.widgets, tab] }));
+  },
+
+  removeTab: (notebookId: string, tabId: string) => {
+    get().removeWidget(tabId);
+  },
+
+  setActiveTab: (notebookId: string, index: number) => {
+    set((s) => ({
+      widgets: s.widgets.map(w => w.id === notebookId ? { ...w, props: { ...w.props, activeTab: index } } : w),
+    }));
   },
 }));

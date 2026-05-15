@@ -8,6 +8,7 @@ def _escape(s: str) -> str:
 def generate_tkinter_code(project: Project) -> str:
     lines = [
         "import tkinter as tk",
+        "from tkinter import ttk",
         "",
         "",
         "def create_window():",
@@ -25,6 +26,28 @@ def generate_tkinter_code(project: Project) -> str:
 
     def render_widget(w, parent_var: str, indent: str = "    "):
         var_name = w.name if w.name else f"{w.type.lower()}_{w.id[:8]}"
+
+        # Special handling for Notebook
+        if w.type == "Notebook":
+            lines.append(f"{indent}{var_name} = ttk.Notebook({parent_var})")
+            lines.append(
+                f"{indent}{var_name}.place("
+                f"x={round(w.x)}, y={round(w.y)}, "
+                f"width={round(w.width)}, height={round(w.height)})"
+            )
+            lines.append("")
+            for tab in children_map.get(w.id, []):
+                tab_var = tab.name if tab.name else f"frame_{tab.id[:8]}"
+                lines.append(f"{indent}    {tab_var} = ttk.Frame({var_name})")
+                lines.append(
+                    f"{indent}    {var_name}.add({tab_var}, text=\"{_escape(str(tab.props.get('text', '')))}\")"
+                )
+                # render tab children inside the tab frame
+                for child in children_map.get(tab.id, []):
+                    render_widget(child, tab_var, indent + "        ")
+                lines.append("")
+            return
+
         props_parts: list[str] = []
         for k, v in w.props.items():
             if v == "" or v is None:

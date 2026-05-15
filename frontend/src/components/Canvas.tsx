@@ -87,7 +87,8 @@ function WidgetRenderer({
   onSelect,
   onMove,
   onResize,
-  children,
+  renderChild,
+  setActiveTab,
 }: {
   widget: WidgetInstance;
   allWidgets: WidgetInstance[];
@@ -95,9 +96,10 @@ function WidgetRenderer({
   onSelect: () => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, w: number, h: number) => void;
-  children?: React.ReactNode;
+  renderChild: (child: WidgetInstance) => React.ReactNode;
+  setActiveTab: (notebookId: string, index: number) => void;
 }) {
-  const isContainer = widget.type === "Frame" || widget.type === "LabelFrame";
+  const isContainer = widget.type === "Frame" || widget.type === "LabelFrame" || widget.type === "Notebook";
 
   // Make container widgets droppable targets for nesting children
   const { setNodeRef: setFrameRef, isOver: isFrameOver } = useDroppable({
@@ -180,6 +182,44 @@ function WidgetRenderer({
 
   const dynamicStyle = getWidgetDynamicStyle(widget);
 
+  // Render container content (Frame, LabelFrame, Notebook)
+  const renderContainerContent = () => {
+    if (widget.type === "Notebook") {
+      const children = allWidgets.filter(w => w.parentId === widget.id);
+      const activeTab = typeof widget.props.activeTab === "number" ? widget.props.activeTab : 0;
+      return (
+        <div className="w-full h-full flex flex-col">
+          <div className="flex border-b border-gray-400 shrink-0">
+            {children.map((child, i) => (
+              <button
+                key={child.id}
+                className={`px-3 py-0.5 text-xs ${i === activeTab ? "bg-white text-gray-800 border-t border-x border-gray-400 rounded-t -mb-px" : "bg-gray-100 text-gray-500"}`}
+                onClick={(e) => { e.stopPropagation(); setActiveTab(widget.id, i); }}
+              >
+                {String(child.props.text ?? `Tab ${i + 1}`)}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 relative">
+            {children[activeTab] && renderChild(children[activeTab])}
+          </div>
+        </div>
+      );
+    }
+
+    // Frame / LabelFrame
+    return (
+      <div className="relative w-full h-full">
+        {widget.type === "LabelFrame" && (
+          <span className="absolute -top-2.5 left-2 text-xs text-gray-600 bg-gray-50 px-1">
+            {String(widget.props.text ?? "") || "LabelFrame"}
+          </span>
+        )}
+        {allWidgets.filter(c => c.parentId === widget.id).map(child => renderChild(child))}
+      </div>
+    );
+  };
+
   return (
     <div
       ref={isContainer ? setFrameRef : undefined}
@@ -196,18 +236,7 @@ function WidgetRenderer({
       onMouseDown={handleMouseDown}
       onClick={(e) => e.stopPropagation()}
     >
-      {isContainer ? (
-        <div className="relative w-full h-full">
-          {widget.type === "LabelFrame" && (
-            <span className="absolute -top-2.5 left-2 text-xs text-gray-600 bg-gray-50 px-1">
-              {String(widget.props.text ?? "") || "LabelFrame"}
-            </span>
-          )}
-          {children}
-        </div>
-      ) : (
-        renderWidgetContent(widget)
-      )}
+      {isContainer ? renderContainerContent() : renderWidgetContent(widget)}
       {isSelected && (
         <>
           <div className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-se-resize" onMouseDown={createResizeHandler("se")} />
@@ -221,7 +250,7 @@ function WidgetRenderer({
 }
 
 export function Canvas() {
-  const { widgets, selectedId, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled } =
+  const { widgets, selectedId, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab } =
     useDesignerStore();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
 
@@ -235,9 +264,6 @@ export function Canvas() {
   } : {};
 
   const renderWidget = (w: WidgetInstance): React.ReactNode => {
-    const children = widgets.filter(c => c.parentId === w.id);
-    const isContainer = w.type === "Frame" || w.type === "LabelFrame";
-
     return (
       <WidgetRenderer
         key={w.id}
@@ -247,7 +273,8 @@ export function Canvas() {
         onSelect={() => selectWidget(w.id)}
         onMove={(id, x, y) => moveWidget(id, snapFn(x), snapFn(y))}
         onResize={(id, w, h) => resizeWidget(id, Math.max(20, snapFn(w)), Math.max(20, snapFn(h)))}
-        children={isContainer ? children.map(child => renderWidget(child)) : undefined}
+        renderChild={renderWidget}
+        setActiveTab={setActiveTab}
       />
     );
   };

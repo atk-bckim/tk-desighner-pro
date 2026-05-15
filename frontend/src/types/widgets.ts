@@ -12,7 +12,8 @@ export type WidgetType =
   | "OptionMenu"
   | "Spinbox"
   | "Scrollbar"
-  | "Separator";
+  | "Separator"
+  | "Notebook";
 
 export interface WidgetInstance {
   id: string;
@@ -48,4 +49,5 @@ export const WIDGET_TYPES: WidgetType[] = [
   "Spinbox",
   "Scrollbar",
   "Separator",
+  "Notebook",
 ];

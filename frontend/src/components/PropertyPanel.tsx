@@ -4,7 +4,7 @@ import { getEditableProps } from "../utils/widgetDefaults";
 import { FontPicker } from "./FontPicker";
 
 export function PropertyPanel() {
-  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget } =
+  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab } =
     useDesignerStore();
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
@@ -145,6 +145,24 @@ export function PropertyPanel() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Notebook Tab Management */}
+      {widget.type === "Notebook" && (
+        <div className="mt-3 border-t border-gray-700 pt-2">
+          <h3 className="text-xs font-semibold text-gray-400 mb-1">Tabs</h3>
+          <div className="flex gap-1">
+            <button onClick={() => addTab(widget.id)} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded flex-1">+ Add Tab</button>
+          </div>
+          {widgets.filter(w => w.parentId === widget.id).map((tab, i) => (
+            <div key={tab.id} className="flex items-center gap-1 mt-1">
+              <input type="text" className="flex-1 bg-gray-700 rounded px-1 py-0.5 text-xs text-white"
+                value={String(tab.props.text ?? "")}
+                onChange={(e) => updateWidgetProp(tab.id, "text", e.target.value)} />
+              <button onClick={() => removeTab(widget.id, tab.id)} className="text-red-400 text-xs">&#10005;</button>
+            </div>
+          ))}
         </div>
       )}
 
