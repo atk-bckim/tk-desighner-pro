@@ -1,5 +1,5 @@
 import { useDesignerStore } from "../store/designerStore";
-import { TEMPLATES } from "../templates";
+import { TEMPLATES } from "../templates/index";
 
 export function Toolbar() {
   const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap, loadTemplate } =
@@ -142,8 +142,8 @@ export function Toolbar() {
           {Object.entries(TEMPLATES).map(([key, tpl]) => (
             <button key={key} className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700 flex items-center gap-2"
               onClick={() => { snapshot(); loadTemplate(key); }}>
-              <span>{tpl.icon}</span>
-              <span>{tpl.label}</span>
+              <span>{(tpl as { icon: string }).icon}</span>
+              <span>{(tpl as { label: string }).label}</span>
             </button>
           ))}
         </div>

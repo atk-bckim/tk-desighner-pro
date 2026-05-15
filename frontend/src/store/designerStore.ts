@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { WidgetInstance, WidgetType, Project } from "../types/widgets";
 import { createWidget, resetCounters } from "../utils/widgetDefaults";
-import { TEMPLATES } from "../templates";
+import { TEMPLATES } from "../templates/index";
 import { v4 as uuid } from "uuid";
 
 interface DesignerState {
