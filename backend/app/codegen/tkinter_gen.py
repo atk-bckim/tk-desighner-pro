@@ -1,6 +1,10 @@
 from app.models.project import Project
 
 
+def _escape(s: str) -> str:
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def generate_tkinter_code(project: Project) -> str:
     lines = [
         "import tkinter as tk",
@@ -9,18 +13,18 @@ def generate_tkinter_code(project: Project) -> str:
         "def create_window():",
         "    root = tk.Tk()",
         f'    root.geometry("{project.canvas_width}x{project.canvas_height}")',
-        f'    root.title("{project.name}")',
+        f'    root.title("{_escape(project.name)}")',
         "",
     ]
 
     for w in project.widgets:
-        var_name = f"{w.type.lower()}_{w.id[:6]}"
+        var_name = f"{w.type.lower()}_{w.id[:8]}"
         props_parts: list[str] = []
         for k, v in w.props.items():
             if v == "" or v is None:
                 continue
             if isinstance(v, str):
-                props_parts.append(f'{k}="{v}"')
+                props_parts.append(f'{k}="{_escape(v)}"')
             else:
                 props_parts.append(f"{k}={v}")
 

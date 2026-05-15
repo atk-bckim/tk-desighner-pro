@@ -38,38 +38,48 @@ export function Toolbar() {
   };
 
   const handlePreview = async () => {
-    const project = exportProject();
-    await fetch("/api/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: project.name,
-        canvas_width: project.canvasWidth,
-        canvas_height: project.canvasHeight,
-        widgets: project.widgets,
-      }),
-    });
+    try {
+      const project = exportProject();
+      const res = await fetch("/api/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: project.name,
+          canvas_width: project.canvasWidth,
+          canvas_height: project.canvasHeight,
+          widgets: project.widgets,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      alert("Preview failed: " + (err as Error).message);
+    }
   };
 
   const handleExport = async () => {
-    const project = exportProject();
-    const res = await fetch("/api/export", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: project.name,
-        canvas_width: project.canvasWidth,
-        canvas_height: project.canvasHeight,
-        widgets: project.widgets,
-      }),
-    });
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${project.name.replace(/ /g, "_")}.py`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const project = exportProject();
+      const res = await fetch("/api/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: project.name,
+          canvas_width: project.canvasWidth,
+          canvas_height: project.canvasHeight,
+          widgets: project.widgets,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${project.name.replace(/ /g, "_")}.py`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Export failed: " + (err as Error).message);
+    }
   };
 
   return (

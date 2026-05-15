@@ -1,6 +1,10 @@
 import { useDesignerStore } from "../store/designerStore";
 import { useState } from "react";
 
+function escapePy(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 function generateCode(
   widgets: ReturnType<typeof useDesignerStore.getState>["widgets"],
   canvasWidth: number,
@@ -18,12 +22,12 @@ function generateCode(
   ];
 
   for (const w of widgets) {
-    const varName = `${w.type.toLowerCase()}_${w.id.slice(0, 6)}`;
+    const varName = `${w.type.toLowerCase()}_${w.id.slice(0, 8)}`;
     const propsParts: string[] = [];
     for (const [k, v] of Object.entries(w.props)) {
       if (v === "" || v === undefined || v === null) continue;
       if (typeof v === "string") {
-        propsParts.push(`${k}="${v}"`);
+        propsParts.push(`${k}="${escapePy(v)}"`);
       } else {
         propsParts.push(`${k}=${v}`);
       }

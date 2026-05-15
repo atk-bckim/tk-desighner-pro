@@ -1,6 +1,7 @@
 import tempfile
 import subprocess
 import os
+import threading
 
 from fastapi import APIRouter, HTTPException
 from app.models.project import Project
@@ -28,5 +29,11 @@ def preview(project: Project):
     except Exception as e:
         os.unlink(tmp_path)
         raise HTTPException(status_code=500, detail=str(e))
+
+    def _cleanup(path: str) -> None:
+        if os.path.exists(path):
+            os.unlink(path)
+
+    threading.Timer(5.0, _cleanup, args=[tmp_path]).start()
 
     return {"status": "launched", "code": code}
