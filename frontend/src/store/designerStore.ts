@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { WidgetInstance, WidgetType, Project } from "../types/widgets";
 import { createWidget } from "../utils/widgetDefaults";
+import { v4 as uuid } from "uuid";
 
 interface DesignerState {
   projectName: string;
@@ -24,6 +25,15 @@ interface DesignerState {
   snapshot: () => void;
   undo: () => void;
   redo: () => void;
+
+  duplicateWidget: (id: string) => void;
+  bringToFront: (id: string) => void;
+  sendToBack: (id: string) => void;
+  setCanvasSize: (width: number, height: number) => void;
+  gridSize: number;
+  snapEnabled: boolean;
+  setGridSize: (size: number) => void;
+  toggleSnap: () => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -128,4 +138,40 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       selectedId: null,
     });
   },
+
+  duplicateWidget: (id) => {
+    const widget = get().widgets.find(w => w.id === id);
+    if (!widget) return;
+    const clone = { ...widget, id: uuid(), x: widget.x + 20, y: widget.y + 20, props: { ...widget.props } };
+    set((s) => ({ widgets: [...s.widgets, clone], selectedId: clone.id }));
+  },
+
+  bringToFront: (id) => {
+    set((s) => {
+      const idx = s.widgets.findIndex(w => w.id === id);
+      if (idx === -1) return s;
+      const w = s.widgets[idx];
+      const rest = s.widgets.filter((_, i) => i !== idx);
+      return { widgets: [...rest, w] };
+    });
+  },
+
+  sendToBack: (id) => {
+    set((s) => {
+      const idx = s.widgets.findIndex(w => w.id === id);
+      if (idx === -1) return s;
+      const w = s.widgets[idx];
+      const rest = s.widgets.filter((_, i) => i !== idx);
+      return { widgets: [w, ...rest] };
+    });
+  },
+
+  setCanvasSize: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
+
+  gridSize: 10,
+  snapEnabled: true,
+
+  setGridSize: (size) => set({ gridSize: size }),
+
+  toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
 }));
