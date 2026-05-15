@@ -25,6 +25,9 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "bg", label: "Background", type: "color" },
       { key: "fg", label: "Foreground", type: "color" },
       { key: "font", label: "Font", type: "text" },
+      { key: "relief", label: "Relief", type: "select", options: ["flat", "raised", "sunken", "groove", "ridge"] },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
+      { key: "bd", label: "Border width", type: "number" },
     ],
   },
   Label: {
@@ -37,6 +40,9 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "fg", label: "Foreground", type: "color" },
       { key: "font", label: "Font", type: "text" },
       { key: "anchor", label: "Anchor", type: "select", options: ["nw", "n", "ne", "w", "center", "e", "sw", "s", "se"] },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled"] },
+      { key: "wraplength", label: "Wrap length", type: "number" },
+      { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
     ],
   },
   Entry: {
@@ -46,6 +52,9 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
     editableProps: [
       { key: "width", label: "Width (chars)", type: "number" },
       { key: "show", label: "Show char", type: "text" },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "fg", label: "Foreground", type: "color" },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled", "readonly"] },
     ],
   },
   Text: {
@@ -55,6 +64,9 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
     editableProps: [
       { key: "width", label: "Width (chars)", type: "number" },
       { key: "height", label: "Height (lines)", type: "number" },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "fg", label: "Foreground", type: "color" },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled"] },
     ],
   },
   Checkbutton: {
@@ -65,6 +77,8 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "text", label: "Text", type: "text" },
       { key: "bg", label: "Background", type: "color" },
       { key: "fg", label: "Foreground", type: "color" },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
+      { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
     ],
   },
   Radiobutton: {
@@ -76,6 +90,8 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "value", label: "Value", type: "text" },
       { key: "bg", label: "Background", type: "color" },
       { key: "fg", label: "Foreground", type: "color" },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
+      { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
     ],
   },
   Listbox: {
@@ -85,6 +101,9 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
     editableProps: [
       { key: "height", label: "Height (items)", type: "number" },
       { key: "selectmode", label: "Select mode", type: "select", options: ["browse", "single", "multiple", "extended"] },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "fg", label: "Foreground", type: "color" },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled"] },
     ],
   },
   Scale: {
@@ -96,6 +115,9 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "to", label: "To", type: "number" },
       { key: "orient", label: "Orientation", type: "select", options: ["horizontal", "vertical"] },
       { key: "length", label: "Length (px)", type: "number" },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "fg", label: "Foreground", type: "color" },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
     ],
   },
   Frame: {
