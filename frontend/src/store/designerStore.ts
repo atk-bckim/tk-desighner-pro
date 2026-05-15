@@ -274,7 +274,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
     set((s) => ({ widgets: [...s.widgets, tab] }));
   },
 
-  removeTab: (notebookId: string, tabId: string) => {
+  removeTab: (_notebookId: string, tabId: string) => {
     get().removeWidget(tabId);
   },
 

@@ -155,7 +155,7 @@ export function PropertyPanel() {
           <div className="flex gap-1">
             <button onClick={() => addTab(widget.id)} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded flex-1">+ Add Tab</button>
           </div>
-          {widgets.filter(w => w.parentId === widget.id).map((tab, i) => (
+          {widgets.filter(w => w.parentId === widget.id).map((tab) => (
             <div key={tab.id} className="flex items-center gap-1 mt-1">
               <input type="text" className="flex-1 bg-gray-700 rounded px-1 py-0.5 text-xs text-white"
                 value={String(tab.props.text ?? "")}
