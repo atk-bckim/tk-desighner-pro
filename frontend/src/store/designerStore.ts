@@ -9,7 +9,7 @@ interface DesignerState {
   widgets: WidgetInstance[];
   selectedId: string | null;
 
-  addWidget: (type: WidgetType, x: number, y: number) => void;
+  addWidget: (type: WidgetType, x: number, y: number, parentId?: string | null) => void;
   removeWidget: (id: string) => void;
   selectWidget: (id: string | null) => void;
   moveWidget: (id: string, x: number, y: number) => void;
@@ -27,15 +27,21 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   widgets: [],
   selectedId: null,
 
-  addWidget: (type, x, y) => {
-    const widget = createWidget(type, x, y);
+  addWidget: (type, x, y, parentId = null) => {
+    const widget = createWidget(type, x, y, parentId);
     set((s) => ({ widgets: [...s.widgets, widget], selectedId: widget.id }));
   },
 
   removeWidget: (id) => {
+    const toRemove = new Set<string>();
+    const collect = (parentId: string) => {
+      toRemove.add(parentId);
+      get().widgets.filter(w => w.parentId === parentId).forEach(w => collect(w.id));
+    };
+    collect(id);
     set((s) => ({
-      widgets: s.widgets.filter((w) => w.id !== id),
-      selectedId: s.selectedId === id ? null : s.selectedId,
+      widgets: s.widgets.filter((w) => !toRemove.has(w.id)),
+      selectedId: s.selectedId && toRemove.has(s.selectedId) ? null : s.selectedId,
     }));
   },
 

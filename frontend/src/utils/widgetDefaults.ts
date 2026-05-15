@@ -122,11 +122,13 @@ export function createWidget(
   type: WidgetType,
   x: number,
   y: number,
+  parentId: string | null = null,
 ): WidgetInstance {
   const spec = SPECS[type];
   return {
     id: uuid(),
     type,
+    parentId,
     x,
     y,
     width: spec.defaultWidth,
