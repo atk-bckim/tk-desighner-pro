@@ -4,50 +4,64 @@ import type { WidgetInstance } from "../types/widgets";
 import { getAbsolutePosition } from "../utils/position";
 import React, { useRef, useCallback } from "react";
 
-const WIDGET_STYLES: Record<string, string> = {
-  Button: "bg-gray-100 border-gray-400 shadow-sm",
-  Label: "bg-transparent border-transparent border-0",
-  Entry: "bg-white border-gray-300",
-  Text: "bg-white border-gray-300",
-  Checkbutton: "bg-transparent border-transparent border-0",
-  Radiobutton: "bg-transparent border-transparent border-0",
-  Listbox: "bg-white border-gray-300",
-  Scale: "bg-gray-50 border-gray-200",
-  Frame: "bg-gray-50/50 border-gray-400 border-dashed",
-  LabelFrame: "bg-gray-50/50 border-gray-400",
-  OptionMenu: "bg-white border-gray-300",
-  Spinbox: "bg-white border-gray-300",
-  Scrollbar: "bg-gray-100 border-gray-300",
-  Separator: "bg-gray-400 border-transparent border-0",
-};
+function getWidgetDynamicStyle(widget: WidgetInstance): React.CSSProperties {
+  const props = widget.props;
+  const style: React.CSSProperties = {};
+
+  if (props.bg && typeof props.bg === "string") style.backgroundColor = props.bg;
+  if (props.fg && typeof props.fg === "string") style.color = props.fg;
+
+  const bd = typeof props.bd === "number" ? props.bd : undefined;
+  if (bd !== undefined) style.borderWidth = `${bd}px`;
+
+  const relief = typeof props.relief === "string" ? props.relief : undefined;
+  if (relief === "raised") style.boxShadow = "1px 1px 0 rgba(0,0,0,0.3), inset 1px 1px 0 rgba(255,255,255,0.5)";
+  else if (relief === "sunken") style.boxShadow = "inset 1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(255,255,255,0.5)";
+  else if (relief === "groove") style.boxShadow = "inset 1px 1px 0 rgba(0,0,0,0.2), inset -1px -1px 0 rgba(0,0,0,0.2)";
+  else if (relief === "ridge") style.boxShadow = "1px 1px 0 rgba(0,0,0,0.2), -1px -1px 0 rgba(255,255,255,0.3)";
+
+  if (props.font && typeof props.font === "string") {
+    const m = props.font.match(/["'](\w+)["']\s*,\s*(\d+)/);
+    if (m) { style.fontFamily = m[1]; style.fontSize = `${m[2]}px`; }
+    if (props.font.includes("bold")) style.fontWeight = "bold";
+    if (props.font.includes("italic")) style.fontStyle = "italic";
+  }
+
+  if (props.state === "disabled") style.opacity = 0.5;
+
+  return style;
+}
 
 function renderWidgetContent(widget: WidgetInstance) {
   const text = String(widget.props.text ?? "");
+  const fgColor = typeof widget.props.fg === "string" ? widget.props.fg : undefined;
+  const textColor = fgColor ? { color: fgColor } : undefined;
+
   switch (widget.type) {
     case "Button":
-      return <span className="text-xs text-gray-700 font-medium truncate">{text || "Button"}</span>;
+      return <span className="text-xs font-medium truncate" style={textColor}>{text || "Button"}</span>;
     case "Label":
-      return <span className="text-xs text-gray-800 truncate">{text || "Label"}</span>;
+      return <span className="text-xs truncate" style={textColor}>{text || "Label"}</span>;
     case "Entry":
       return <div className="w-full h-0.5 bg-gray-400 absolute bottom-0.5 left-0 right-0" />;
     case "Text":
-      return <div className="absolute inset-1 text-xs text-gray-400 overflow-hidden">Text</div>;
+      return <div className="absolute inset-1 text-xs overflow-hidden" style={textColor || { color: "#9ca3af" }}>Text</div>;
     case "Checkbutton":
       return (
         <div className="flex items-center gap-1.5 px-1">
           <div className="w-3.5 h-3.5 border-2 border-gray-400 rounded-sm shrink-0" />
-          <span className="text-xs text-gray-700 truncate">{text || "Check"}</span>
+          <span className="text-xs truncate" style={textColor}>{text || "Check"}</span>
         </div>
       );
     case "Radiobutton":
       return (
         <div className="flex items-center gap-1.5 px-1">
           <div className="w-3.5 h-3.5 border-2 border-gray-400 rounded-full shrink-0" />
-          <span className="text-xs text-gray-700 truncate">{text || "Radio"}</span>
+          <span className="text-xs truncate" style={textColor}>{text || "Radio"}</span>
         </div>
       );
     case "Listbox":
-      return <div className="absolute inset-1 text-xs text-gray-500"><div className="border-b border-gray-200 pb-0.5">Item 1</div><div className="border-b border-gray-200 pb-0.5">Item 2</div></div>;
+      return <div className="absolute inset-1 text-xs" style={textColor || { color: "#6b7280" }}><div className="border-b border-gray-200 pb-0.5">Item 1</div><div className="border-b border-gray-200 pb-0.5">Item 2</div></div>;
     case "Scale":
       return <div className="w-full flex items-center px-3"><div className="flex-1 h-1 bg-gray-300 rounded relative"><div className="w-3 h-3 bg-blue-500 rounded-full absolute -top-1 left-1/3" /></div></div>;
     case "Separator":
@@ -55,9 +69,9 @@ function renderWidgetContent(widget: WidgetInstance) {
     case "Scrollbar":
       return <div className="w-full h-full flex flex-col items-center py-1 gap-0.5"><div className="w-2 h-2 bg-gray-400 rounded-sm" /><div className="flex-1 w-2 bg-gray-300 rounded" /><div className="w-2 h-2 bg-gray-400 rounded-sm" /></div>;
     case "OptionMenu":
-      return <div className="flex items-center justify-between w-full px-2"><span className="text-xs text-gray-600">{(String(widget.props.values ?? "")).split(",")[0] || "Select..."}</span><span className="text-xs text-gray-400">&#9660;</span></div>;
+      return <div className="flex items-center justify-between w-full px-2"><span className="text-xs" style={textColor || { color: "#4b5563" }}>{(String(widget.props.values ?? "")).split(",")[0] || "Select..."}</span><span className="text-xs text-gray-400">&#9660;</span></div>;
     case "Spinbox":
-      return <div className="flex items-center w-full px-1"><span className="text-xs text-gray-600 flex-1">0</span><div className="flex flex-col"><span className="text-xs leading-none">&#9650;</span><span className="text-xs leading-none">&#9660;</span></div></div>;
+      return <div className="flex items-center w-full px-1"><span className="text-xs flex-1" style={textColor || { color: "#4b5563" }}>0</span><div className="flex flex-col"><span className="text-xs leading-none">&#9650;</span><span className="text-xs leading-none">&#9660;</span></div></div>;
     case "Frame":
     case "LabelFrame":
       return null; // Container widgets render children
@@ -164,12 +178,12 @@ function WidgetRenderer({
     [widget.id, widget.width, widget.height, widget.x, widget.y, onResize, onMove],
   );
 
-  const color = WIDGET_STYLES[widget.type] || "bg-gray-100 border-gray-400";
+  const dynamicStyle = getWidgetDynamicStyle(widget);
 
   return (
     <div
       ref={isContainer ? setFrameRef : undefined}
-      className={`absolute border ${color} rounded flex items-center justify-center cursor-move select-none overflow-hidden ${
+      className={`absolute border border-gray-300 rounded flex items-center justify-center cursor-move select-none overflow-hidden ${
         isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent" : ""
       } ${isContainer && isFrameOver ? "ring-2 ring-green-400" : ""}`}
       style={{
@@ -177,6 +191,7 @@ function WidgetRenderer({
         top: absPos.y,
         width: widget.width,
         height: widget.height,
+        ...dynamicStyle,
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => e.stopPropagation()}
