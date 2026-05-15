@@ -108,6 +108,55 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "bd", label: "Border width", type: "number" },
     ],
   },
+  LabelFrame: {
+    defaultWidth: 250,
+    defaultHeight: 200,
+    defaultProps: { text: "LabelFrame" },
+    editableProps: [
+      { key: "text", label: "Title", type: "text" },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "fg", label: "Foreground", type: "color" },
+      { key: "relief", label: "Relief", type: "select", options: ["flat", "raised", "sunken", "groove", "ridge"] },
+      { key: "bd", label: "Border width", type: "number" },
+    ],
+  },
+  OptionMenu: {
+    defaultWidth: 150,
+    defaultHeight: 30,
+    defaultProps: { values: "Option1,Option2,Option3" },
+    editableProps: [
+      { key: "values", label: "Options (comma-sep)", type: "text" },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "fg", label: "Foreground", type: "color" },
+    ],
+  },
+  Spinbox: {
+    defaultWidth: 100,
+    defaultHeight: 30,
+    defaultProps: { from_: 0, to: 100, increment: 1 },
+    editableProps: [
+      { key: "from_", label: "From", type: "number" },
+      { key: "to", label: "To", type: "number" },
+      { key: "increment", label: "Increment", type: "number" },
+      { key: "width", label: "Width (chars)", type: "number" },
+    ],
+  },
+  Scrollbar: {
+    defaultWidth: 20,
+    defaultHeight: 200,
+    defaultProps: { orient: "vertical" },
+    editableProps: [
+      { key: "orient", label: "Orientation", type: "select", options: ["vertical", "horizontal"] },
+    ],
+  },
+  Separator: {
+    defaultWidth: 200,
+    defaultHeight: 4,
+    defaultProps: { orient: "horizontal" },
+    editableProps: [
+      { key: "orient", label: "Orientation", type: "select", options: ["horizontal", "vertical"] },
+    ],
+  },
 };
 
 export function getSpec(type: WidgetType): WidgetSpec {

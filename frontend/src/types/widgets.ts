@@ -7,7 +7,12 @@ export type WidgetType =
   | "Radiobutton"
   | "Listbox"
   | "Scale"
-  | "Frame";
+  | "Frame"
+  | "LabelFrame"
+  | "OptionMenu"
+  | "Spinbox"
+  | "Scrollbar"
+  | "Separator";
 
 export interface WidgetInstance {
   id: string;
@@ -37,4 +42,9 @@ export const WIDGET_TYPES: WidgetType[] = [
   "Listbox",
   "Scale",
   "Frame",
+  "LabelFrame",
+  "OptionMenu",
+  "Spinbox",
+  "Scrollbar",
+  "Separator",
 ];
