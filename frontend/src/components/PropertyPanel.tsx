@@ -2,7 +2,7 @@ import { useDesignerStore } from "../store/designerStore";
 import { getEditableProps } from "../utils/widgetDefaults";
 
 export function PropertyPanel() {
-  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget } =
+  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize } =
     useDesignerStore();
 
   const widget = widgets.find((w) => w.id === selectedId);
@@ -11,7 +11,22 @@ export function PropertyPanel() {
     return (
       <div className="w-64 bg-gray-800 border-l border-gray-700 p-3 shrink-0">
         <h2 className="text-sm font-semibold text-gray-400">Properties</h2>
-        <p className="text-xs text-gray-500 mt-2">Select a widget to edit</p>
+        <div className="mt-3">
+          <h3 className="text-xs font-semibold text-gray-400 mb-1">Canvas Size</h3>
+          <div className="grid grid-cols-2 gap-1">
+            <label className="text-xs text-gray-400">
+              Width
+              <input type="number" className="block w-full bg-gray-700 rounded px-1 py-0.5 text-white mt-0.5"
+                value={canvasWidth} onChange={(e) => setCanvasSize(parseInt(e.target.value) || 800, canvasHeight)} />
+            </label>
+            <label className="text-xs text-gray-400">
+              Height
+              <input type="number" className="block w-full bg-gray-700 rounded px-1 py-0.5 text-white mt-0.5"
+                value={canvasHeight} onChange={(e) => setCanvasSize(canvasWidth, parseInt(e.target.value) || 600)} />
+            </label>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-4">Select a widget to edit its properties</p>
       </div>
     );
   }
