@@ -3,7 +3,7 @@ import { useDesignerStore } from "../store/designerStore";
 import type { WidgetInstance } from "../types/widgets";
 import { getAbsolutePosition } from "../utils/position";
 import { ContextMenu } from "./ContextMenu";
-import React, { useRef, useCallback, useState } from "react";
+import React, { useRef, useCallback, useState, useEffect } from "react";
 
 function getWidgetDynamicStyle(widget: WidgetInstance): React.CSSProperties {
   const props = widget.props;
@@ -266,8 +266,50 @@ export function Canvas() {
     useDesignerStore();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetId: string } | null>(null);
+  const [selRect, setSelRect] = useState<{ sx: number; sy: number; ex: number; ey: number } | null>(null);
 
   const rootWidgets = widgets.filter(w => w.parentId === null);
+
+  // Marquee selection: track mousemove/mouseup while dragging on empty canvas
+  useEffect(() => {
+    if (!selRect) return;
+    const canvasEl = document.querySelector('[data-canvas="true"]');
+    if (!canvasEl) return;
+
+    const handleMove = (e: MouseEvent) => {
+      const rect = canvasEl.getBoundingClientRect();
+      setSelRect(prev => prev ? { ...prev, ex: e.clientX - rect.left, ey: e.clientY - rect.top } : null);
+    };
+
+    const handleUp = () => {
+      if (selRect) {
+        const x1 = Math.min(selRect.sx, selRect.ex);
+        const y1 = Math.min(selRect.sy, selRect.ey);
+        const x2 = Math.max(selRect.sx, selRect.ex);
+        const y2 = Math.max(selRect.sy, selRect.ey);
+
+        if (Math.abs(x2 - x1) > 5 || Math.abs(y2 - y1) > 5) {
+          // Find widgets within rectangle
+          const toSelect: string[] = [];
+          for (const w of rootWidgets) {
+            const absPos = getAbsolutePosition(w, widgets);
+            if (absPos.x >= x1 && absPos.x + w.width <= x2 && absPos.y >= y1 && absPos.y + w.height <= y2) {
+              toSelect.push(w.id);
+            }
+          }
+          toSelect.forEach(id => selectWidget(id, true));
+        }
+      }
+      setSelRect(null);
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, [selRect?.sx, selRect?.sy, selRect?.ex, selRect?.ey]);
 
   const snapFn = (v: number) => snapEnabled ? Math.round(v / gridSize) * gridSize : v;
 
@@ -305,11 +347,27 @@ export function Canvas() {
         }`}
         style={{ width: canvasWidth, height: canvasHeight, ...gridStyle }}
         onMouseDown={(e) => {
-          if (e.target === e.currentTarget) selectWidget(null);
+          if (e.button !== 0) return;
+          if (e.target === e.currentTarget) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setSelRect({ sx: e.clientX - rect.left, sy: e.clientY - rect.top, ex: e.clientX - rect.left, ey: e.clientY - rect.top });
+            selectWidget(null);
+          }
         }}
       >
         {rootWidgets.map(renderWidget)}
         {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} widgetId={contextMenu.widgetId} onClose={() => setContextMenu(null)} />}
+        {selRect && (
+          <div
+            className="absolute border border-blue-400 bg-blue-400/10 pointer-events-none"
+            style={{
+              left: Math.min(selRect.sx, selRect.ex),
+              top: Math.min(selRect.sy, selRect.ey),
+              width: Math.abs(selRect.ex - selRect.sx),
+              height: Math.abs(selRect.ey - selRect.sy),
+            }}
+          />
+        )}
       </div>
     </div>
   );
