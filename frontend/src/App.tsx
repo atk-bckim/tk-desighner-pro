@@ -10,6 +10,7 @@ import { ObjectTree } from "./components/ObjectTree";
 import { StatusBar } from "./components/StatusBar";
 import { useDesignerStore } from "./store/designerStore";
 import type { WidgetType } from "./types/widgets";
+import { getAbsolutePosition } from "./utils/position";
 
 export default function App() {
   const addWidget = useDesignerStore((s) => s.addWidget);
@@ -54,14 +55,13 @@ export default function App() {
   const handleDragEnd = (event: DragEndEvent) => {
     setDraggingType(null);
     const { active, over } = event;
-    if (!over || over.id !== "canvas") return;
+    if (!over) return;
 
     const data = active.data.current;
     if (data?.fromToolbox && data.widgetType) {
       const canvasEl = document.querySelector('[data-canvas="true"]');
       if (!canvasEl) return;
       const rect = canvasEl.getBoundingClientRect();
-      // Drop at mouse position relative to canvas, or center if delta is 0
       const translated = active.rect.current.translated;
       const dropX = translated
         ? Math.max(0, Math.round(translated.left - rect.left))
@@ -69,7 +69,26 @@ export default function App() {
       const dropY = translated
         ? Math.max(0, Math.round(translated.top - rect.top))
         : Math.round(rect.height / 2 - 20);
-      addWidget(data.widgetType, dropX, dropY);
+
+      // Check if dropped on a Frame
+      const overId = String(over.id);
+      if (overId.startsWith("frame-")) {
+        const frameId = overId.replace("frame-", "");
+        const store = useDesignerStore.getState();
+        const frameWidget = store.widgets.find((w) => w.id === frameId);
+        if (frameWidget) {
+          const frameAbs = getAbsolutePosition(frameWidget, store.widgets);
+          const relX = Math.max(0, dropX - frameAbs.x);
+          const relY = Math.max(0, dropY - frameAbs.y);
+          addWidget(data.widgetType, relX, relY, frameId);
+          return;
+        }
+      }
+
+      // Drop on canvas root
+      if (overId === "canvas") {
+        addWidget(data.widgetType, dropX, dropY);
+      }
     }
   };
 

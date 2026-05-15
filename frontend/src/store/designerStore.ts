@@ -67,9 +67,34 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   selectWidget: (id) => set({ selectedId: id }),
 
   moveWidget: (id, x, y) => {
-    set((s) => ({
-      widgets: s.widgets.map((w) => (w.id === id ? { ...w, x, y } : w)),
-    }));
+    set((s) => {
+      const widget = s.widgets.find((w) => w.id === id);
+      if (!widget) return s;
+      const dx = x - widget.x;
+      const dy = y - widget.y;
+
+      // Collect all descendant IDs
+      const collectDescendants = (parentId: string): string[] => {
+        const ids: string[] = [];
+        s.widgets
+          .filter((w) => w.parentId === parentId)
+          .forEach((w) => {
+            ids.push(w.id);
+            ids.push(...collectDescendants(w.id));
+          });
+        return ids;
+      };
+      const descendantIds = collectDescendants(id);
+
+      return {
+        widgets: s.widgets.map((w) => {
+          if (w.id === id) return { ...w, x, y };
+          if (descendantIds.includes(w.id))
+            return { ...w, x: w.x + dx, y: w.y + dy };
+          return w;
+        }),
+      };
+    });
   },
 
   resizeWidget: (id, width, height) => {
@@ -150,10 +175,40 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   },
 
   duplicateWidget: (id) => {
-    const widget = get().widgets.find(w => w.id === id);
+    const widget = get().widgets.find((w) => w.id === id);
     if (!widget) return;
-    const clone = { ...widget, id: uuid(), x: widget.x + 20, y: widget.y + 20, props: { ...widget.props } };
-    set((s) => ({ widgets: [...s.widgets, clone], selectedId: clone.id }));
+
+    const idMap = new Map<string, string>();
+    const clones: WidgetInstance[] = [];
+
+    const cloneWidget = (origId: string, newParentId: string | null) => {
+      const orig = get().widgets.find((w) => w.id === origId);
+      if (!orig) return;
+      const newId = uuid();
+      idMap.set(origId, newId);
+      const clone: WidgetInstance = {
+        ...orig,
+        id: newId,
+        name: orig.name + "_copy",
+        parentId: newParentId,
+        x: orig.x + 20,
+        y: orig.y + 20,
+        props: { ...orig.props },
+      };
+      clones.push(clone);
+      // Clone children recursively
+      get()
+        .widgets.filter((w) => w.parentId === origId)
+        .forEach((child) => {
+          cloneWidget(child.id, newId);
+        });
+    };
+
+    cloneWidget(id, widget.parentId);
+    set((s) => ({
+      widgets: [...s.widgets, ...clones],
+      selectedId: idMap.get(id)!,
+    }));
   },
 
   bringToFront: (id) => {

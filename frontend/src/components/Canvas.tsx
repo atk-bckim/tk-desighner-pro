@@ -1,6 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import { useDesignerStore } from "../store/designerStore";
 import type { WidgetInstance } from "../types/widgets";
+import { getAbsolutePosition } from "../utils/position";
 import React, { useRef, useCallback } from "react";
 
 const WIDGET_STYLES: Record<string, string> = {
@@ -67,6 +68,7 @@ function renderWidgetContent(widget: WidgetInstance) {
 
 function WidgetRenderer({
   widget,
+  allWidgets,
   isSelected,
   onSelect,
   onMove,
@@ -74,12 +76,23 @@ function WidgetRenderer({
   children,
 }: {
   widget: WidgetInstance;
+  allWidgets: WidgetInstance[];
   isSelected: boolean;
   onSelect: () => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, w: number, h: number) => void;
   children?: React.ReactNode;
 }) {
+  const isContainer = widget.type === "Frame" || widget.type === "LabelFrame";
+
+  // Make container widgets droppable targets for nesting children
+  const { setNodeRef: setFrameRef, isOver: isFrameOver } = useDroppable({
+    id: `frame-${widget.id}`,
+    disabled: !isContainer,
+  });
+
+  const absPos = getAbsolutePosition(widget, allWidgets);
+
   const moveRef = useRef<{ startX: number; startY: number; widgetX: number; widgetY: number } | null>(null);
 
   const handleMouseDown = useCallback(
@@ -152,16 +165,16 @@ function WidgetRenderer({
   );
 
   const color = WIDGET_STYLES[widget.type] || "bg-gray-100 border-gray-400";
-  const isContainer = widget.type === "Frame" || widget.type === "LabelFrame";
 
   return (
     <div
+      ref={isContainer ? setFrameRef : undefined}
       className={`absolute border ${color} rounded flex items-center justify-center cursor-move select-none overflow-hidden ${
         isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent" : ""
-      }`}
+      } ${isContainer && isFrameOver ? "ring-2 ring-green-400" : ""}`}
       style={{
-        left: widget.x,
-        top: widget.y,
+        left: absPos.x,
+        top: absPos.y,
         width: widget.width,
         height: widget.height,
       }}
@@ -214,6 +227,7 @@ export function Canvas() {
       <WidgetRenderer
         key={w.id}
         widget={w}
+        allWidgets={widgets}
         isSelected={w.id === selectedId}
         onSelect={() => selectWidget(w.id)}
         onMove={(id, x, y) => moveWidget(id, snapFn(x), snapFn(y))}
