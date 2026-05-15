@@ -47,6 +47,19 @@ export default function App() {
           store.duplicateWidget(store.selectedId);
         }
       }
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && store.selectedId) {
+        e.preventDefault();
+        const step = e.shiftKey ? store.gridSize : 1;
+        const widget = store.widgets.find(w => w.id === store.selectedId);
+        if (widget) {
+          let { x, y } = widget;
+          if (e.key === "ArrowUp") y -= step;
+          if (e.key === "ArrowDown") y += step;
+          if (e.key === "ArrowLeft") x -= step;
+          if (e.key === "ArrowRight") x += step;
+          store.moveWidget(widget.id, x, y);
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
