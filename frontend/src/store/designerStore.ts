@@ -18,6 +18,12 @@ interface DesignerState {
   loadProject: (project: Project) => void;
   exportProject: () => Project;
   setProjectName: (name: string) => void;
+
+  undoStack: WidgetInstance[][];
+  redoStack: WidgetInstance[][];
+  snapshot: () => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -90,4 +96,36 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   },
 
   setProjectName: (name) => set({ projectName: name }),
+
+  undoStack: [],
+  redoStack: [],
+
+  snapshot: () => {
+    const current = get().widgets;
+    set((s) => ({ undoStack: [...s.undoStack, current], redoStack: [] }));
+  },
+
+  undo: () => {
+    const { undoStack, widgets } = get();
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    set({
+      widgets: prev,
+      undoStack: undoStack.slice(0, -1),
+      redoStack: [...get().redoStack, widgets],
+      selectedId: null,
+    });
+  },
+
+  redo: () => {
+    const { redoStack, widgets } = get();
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    set({
+      widgets: next,
+      undoStack: [...get().undoStack, widgets],
+      redoStack: redoStack.slice(0, -1),
+      selectedId: null,
+    });
+  },
 }));
