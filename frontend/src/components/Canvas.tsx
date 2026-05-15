@@ -95,7 +95,7 @@ function WidgetRenderer({
   widget: WidgetInstance;
   allWidgets: WidgetInstance[];
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (multi?: boolean) => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, w: number, h: number) => void;
   renderChild: (child: WidgetInstance) => React.ReactNode;
@@ -117,7 +117,7 @@ function WidgetRenderer({
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      onSelect();
+      onSelect(e.ctrlKey || e.metaKey);
       if (widget.locked) return;
       moveRef.current = {
         startX: e.clientX,
@@ -262,7 +262,7 @@ function WidgetRenderer({
 }
 
 export function Canvas() {
-  const { widgets, selectedId, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab } =
+  const { widgets, selectedIds, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab } =
     useDesignerStore();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetId: string } | null>(null);
@@ -282,8 +282,8 @@ export function Canvas() {
         key={w.id}
         widget={w}
         allWidgets={widgets}
-        isSelected={w.id === selectedId}
-        onSelect={() => selectWidget(w.id)}
+        isSelected={selectedIds.includes(w.id)}
+        onSelect={(multi) => selectWidget(w.id, multi)}
         onMove={(id, x, y) => moveWidget(id, snapFn(x), snapFn(y))}
         onResize={(id, w, h) => resizeWidget(id, Math.max(20, snapFn(w)), Math.max(20, snapFn(h)))}
         renderChild={renderWidget}

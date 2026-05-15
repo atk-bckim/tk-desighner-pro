@@ -1,8 +1,8 @@
 import { useDesignerStore } from "../store/designerStore";
 
 export function StatusBar() {
-  const { widgets, selectedId, canvasWidth, canvasHeight, gridSize, snapEnabled } = useDesignerStore();
-  const selected = widgets.find(w => w.id === selectedId);
+  const { widgets, selectedIds, canvasWidth, canvasHeight, gridSize, snapEnabled } = useDesignerStore();
+  const selected = selectedIds.length === 1 ? widgets.find(w => w.id === selectedIds[0]) : null;
 
   return (
     <div className="h-6 bg-gray-800 border-t border-gray-700 flex items-center px-3 text-xs text-gray-500 gap-4 shrink-0">

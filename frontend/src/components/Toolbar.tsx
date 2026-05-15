@@ -1,7 +1,7 @@
 import { useDesignerStore } from "../store/designerStore";
 
 export function Toolbar() {
-  const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedId, snapEnabled, toggleSnap } =
+  const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap } =
     useDesignerStore();
   const undoStackLen = useDesignerStore((s) => s.undoStack.length);
   const redoStackLen = useDesignerStore((s) => s.redoStack.length);
@@ -129,8 +129,8 @@ export function Toolbar() {
       <button onClick={() => undo()} disabled={undoStackLen === 0} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-sm disabled:opacity-30" title="Undo (Ctrl+Z)">&#8630;</button>
       <button onClick={() => redo()} disabled={redoStackLen === 0} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-sm disabled:opacity-30" title="Redo (Ctrl+Y)">&#8631;</button>
       <div className="h-6 w-px bg-gray-600" />
-      <button onClick={() => { if (selectedId) { snapshot(); removeWidget(selectedId); } }} disabled={!selectedId} className="bg-red-700 hover:bg-red-600 px-2 py-1 rounded text-sm disabled:opacity-30" title="Delete">&#10005;</button>
-      <button onClick={() => { if (selectedId) { snapshot(); duplicateWidget(selectedId); } }} disabled={!selectedId} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-sm disabled:opacity-30" title="Duplicate (Ctrl+D)">&#10723;</button>
+      <button onClick={() => { if (selectedIds.length > 0) { snapshot(); selectedIds.forEach(id => removeWidget(id)); } }} disabled={selectedIds.length === 0} className="bg-red-700 hover:bg-red-600 px-2 py-1 rounded text-sm disabled:opacity-30" title="Delete">&#10005;</button>
+      <button onClick={() => { if (selectedIds.length > 0) { snapshot(); duplicateWidget(selectedIds[0]); } }} disabled={selectedIds.length === 0} className="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-sm disabled:opacity-30" title="Duplicate (Ctrl+D)">&#10723;</button>
       <div className="h-6 w-px bg-gray-600" />
       <button onClick={toggleSnap} className={`px-2 py-1 rounded text-sm ${snapEnabled ? "bg-blue-600 hover:bg-blue-500" : "bg-gray-600 hover:bg-gray-500"}`} title="Toggle Grid">&#8845;</button>
       <button

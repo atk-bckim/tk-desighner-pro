@@ -8,11 +8,11 @@ interface DesignerState {
   canvasWidth: number;
   canvasHeight: number;
   widgets: WidgetInstance[];
-  selectedId: string | null;
+  selectedIds: string[];
 
   addWidget: (type: WidgetType, x: number, y: number, parentId?: string | null) => void;
   removeWidget: (id: string) => void;
-  selectWidget: (id: string | null) => void;
+  selectWidget: (id: string | null, multi?: boolean) => void;
   moveWidget: (id: string, x: number, y: number) => void;
   resizeWidget: (id: string, width: number, height: number) => void;
   updateWidgetProp: (id: string, key: string, value: unknown) => void;
@@ -50,11 +50,11 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   canvasWidth: 800,
   canvasHeight: 600,
   widgets: [],
-  selectedId: null,
+  selectedIds: [],
 
   addWidget: (type, x, y, parentId = null) => {
     const widget = createWidget(type, x, y, parentId);
-    set((s) => ({ widgets: [...s.widgets, widget], selectedId: widget.id }));
+    set((s) => ({ widgets: [...s.widgets, widget], selectedIds: [widget.id] }));
   },
 
   removeWidget: (id) => {
@@ -66,11 +66,20 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
     collect(id);
     set((s) => ({
       widgets: s.widgets.filter((w) => !toRemove.has(w.id)),
-      selectedId: s.selectedId && toRemove.has(s.selectedId) ? null : s.selectedId,
+      selectedIds: s.selectedIds.filter(i => !toRemove.has(i)),
     }));
   },
 
-  selectWidget: (id) => set({ selectedId: id }),
+  selectWidget: (id, multi = false) => {
+    if (id === null) { set({ selectedIds: [] }); return; }
+    set((s) => {
+      if (multi) {
+        const has = s.selectedIds.includes(id);
+        return { selectedIds: has ? s.selectedIds.filter(i => i !== id) : [...s.selectedIds, id] };
+      }
+      return { selectedIds: [id] };
+    });
+  },
 
   moveWidget: (id, x, y) => {
     set((s) => {
@@ -132,7 +141,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       canvasWidth: project.canvasWidth,
       canvasHeight: project.canvasHeight,
       widgets: project.widgets,
-      selectedId: null,
+      selectedIds: [],
     });
   },
 
@@ -164,7 +173,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       widgets: prev,
       undoStack: undoStack.slice(0, -1),
       redoStack: [...get().redoStack, widgets],
-      selectedId: null,
+      selectedIds: [],
     });
   },
 
@@ -176,7 +185,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       widgets: next,
       undoStack: [...get().undoStack, widgets],
       redoStack: redoStack.slice(0, -1),
-      selectedId: null,
+      selectedIds: [],
     });
   },
 
@@ -213,7 +222,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
     cloneWidget(id, widget.parentId);
     set((s) => ({
       widgets: [...s.widgets, ...clones],
-      selectedId: idMap.get(id)!,
+      selectedIds: [idMap.get(id)!],
     }));
   },
 

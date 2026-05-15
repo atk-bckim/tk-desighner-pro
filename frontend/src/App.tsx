@@ -24,9 +24,9 @@ export default function App() {
       const store = useDesignerStore.getState();
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (store.selectedId) {
+        if (store.selectedIds.length > 0) {
           store.snapshot();
-          store.removeWidget(store.selectedId);
+          [...store.selectedIds].forEach(id => store.removeWidget(id));
         }
       }
       if (e.key === "z" && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
@@ -42,15 +42,15 @@ export default function App() {
       }
       if (e.key === "d" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        if (store.selectedId) {
+        if (store.selectedIds.length > 0) {
           store.snapshot();
-          store.duplicateWidget(store.selectedId);
+          store.duplicateWidget(store.selectedIds[0]);
         }
       }
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && store.selectedId) {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && store.selectedIds.length > 0) {
         e.preventDefault();
         const step = e.shiftKey ? store.gridSize : 1;
-        const widget = store.widgets.find(w => w.id === store.selectedId);
+        const widget = store.widgets.find(w => w.id === store.selectedIds[0]);
         if (widget) {
           let { x, y } = widget;
           if (e.key === "ArrowUp") y -= step;

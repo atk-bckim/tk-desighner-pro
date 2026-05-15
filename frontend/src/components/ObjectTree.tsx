@@ -3,10 +3,10 @@ import type { WidgetInstance } from "../types/widgets";
 import { useState } from "react";
 
 function TreeNode({ widget, depth = 0 }: { widget: WidgetInstance; depth?: number }) {
-  const { widgets, selectedId, selectWidget } = useDesignerStore();
+  const { widgets, selectedIds, selectWidget } = useDesignerStore();
   const [expanded, setExpanded] = useState(true);
   const children = widgets.filter(w => w.parentId === widget.id);
-  const isSelected = selectedId === widget.id;
+  const isSelected = selectedIds.includes(widget.id);
   const isContainer = widget.type === "Frame" || widget.type === "LabelFrame";
 
   return (

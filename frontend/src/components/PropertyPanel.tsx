@@ -4,11 +4,31 @@ import { getEditableProps } from "../utils/widgetDefaults";
 import { FontPicker } from "./FontPicker";
 
 export function PropertyPanel() {
-  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock } =
+  const selectedIds = useDesignerStore((s) => s.selectedIds);
+  const widgets = useDesignerStore((s) => s.widgets);
+  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets } =
     useDesignerStore();
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
-  const widget = widgets.find((w) => w.id === selectedId);
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
+  const widget = selectedId ? widgets.find(w => w.id === selectedId) : null;
+
+  // Multi-select panel
+  if (selectedIds.length > 1) {
+    return (
+      <div className="w-64 bg-gray-800 border-l border-gray-700 p-3 shrink-0">
+        <h2 className="text-sm font-semibold text-gray-400">Properties</h2>
+        <p className="text-xs text-blue-400 mt-2">{selectedIds.length} widgets selected</p>
+        <div className="mt-3 flex flex-col gap-2">
+          <button onClick={() => { snapshot(); selectedIds.forEach(id => removeWidget(id)); }} className="text-xs bg-red-700 hover:bg-red-600 px-2 py-1 rounded">Delete All</button>
+          <button onClick={() => { alignWidgets(selectedIds, "left"); }} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">Align Left</button>
+          <button onClick={() => { alignWidgets(selectedIds, "right"); }} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">Align Right</button>
+          <button onClick={() => { alignWidgets(selectedIds, "top"); }} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">Align Top</button>
+          <button onClick={() => { alignWidgets(selectedIds, "bottom"); }} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">Align Bottom</button>
+        </div>
+      </div>
+    );
+  }
 
   if (!widget) {
     return (
