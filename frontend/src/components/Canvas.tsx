@@ -134,9 +134,16 @@ function WidgetRenderer({
 }
 
 export function Canvas() {
-  const { widgets, selectedId, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget } =
+  const { widgets, selectedId, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled } =
     useDesignerStore();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
+
+  const snapFn = (v: number) => snapEnabled ? Math.round(v / gridSize) * gridSize : v;
+
+  const gridStyle = snapEnabled ? {
+    backgroundImage: `linear-gradient(to right, #f0f0f0 1px, transparent 1px), linear-gradient(to bottom, #f0f0f0 1px, transparent 1px)`,
+    backgroundSize: `${gridSize}px ${gridSize}px`,
+  } : {};
 
   return (
     <div className="flex-1 overflow-auto bg-gray-900 p-4">
@@ -146,7 +153,7 @@ export function Canvas() {
         className={`relative bg-white border-2 border-dashed ${
           isOver ? "border-blue-400" : "border-gray-600"
         }`}
-        style={{ width: canvasWidth, height: canvasHeight }}
+        style={{ width: canvasWidth, height: canvasHeight, ...gridStyle }}
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) selectWidget(null);
         }}
@@ -157,8 +164,8 @@ export function Canvas() {
             widget={w}
             isSelected={w.id === selectedId}
             onSelect={() => selectWidget(w.id)}
-            onMove={moveWidget}
-            onResize={resizeWidget}
+            onMove={(id, x, y) => moveWidget(id, snapFn(x), snapFn(y))}
+            onResize={(id, w, h) => resizeWidget(id, Math.max(20, snapFn(w)), Math.max(20, snapFn(h)))}
           />
         ))}
       </div>
