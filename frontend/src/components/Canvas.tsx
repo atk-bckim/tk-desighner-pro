@@ -61,18 +61,32 @@ function WidgetRenderer({
     [widget.id, widget.x, widget.y, onSelect, onMove],
   );
 
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
+  const createResizeHandler = useCallback(
+    (direction: "se" | "sw" | "ne" | "nw") => (e: React.MouseEvent) => {
       e.stopPropagation();
+      const startClientX = e.clientX;
+      const startClientY = e.clientY;
       const startW = widget.width;
       const startH = widget.height;
-      const startX = e.clientX;
-      const startY = e.clientY;
+      const startX = widget.x;
+      const startY = widget.y;
 
       const handleMouseMove = (e: MouseEvent) => {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        onResize(widget.id, startW + dx, startH + dy);
+        const dx = e.clientX - startClientX;
+        const dy = e.clientY - startClientY;
+        let newW = startW, newH = startH, newX = startX, newY = startY;
+
+        if (direction.includes("e")) newW = startW + dx;
+        if (direction.includes("w")) { newW = startW - dx; newX = startX + dx; }
+        if (direction.includes("s")) newH = startH + dy;
+        if (direction.includes("n")) { newH = startH - dy; newY = startY + dy; }
+
+        if (newW >= 20 && newH >= 20) {
+          onResize(widget.id, newW, newH);
+          if (newX !== startX || newY !== startY) {
+            onMove(widget.id, newX, newY);
+          }
+        }
       };
 
       const handleMouseUp = () => {
@@ -83,7 +97,7 @@ function WidgetRenderer({
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [widget.id, widget.width, widget.height, onResize],
+    [widget.id, widget.width, widget.height, widget.x, widget.y, onResize, onMove],
   );
 
   const color = WIDGET_COLORS[widget.type] || "bg-gray-700/60 border-gray-500";
@@ -109,22 +123,10 @@ function WidgetRenderer({
       </span>
       {isSelected && (
         <>
-          <div
-            className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-se-resize"
-            onMouseDown={handleResizeStart}
-          />
-          <div
-            className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-sw-resize"
-            onMouseDown={handleResizeStart}
-          />
-          <div
-            className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-white rounded-sm cursor-ne-resize"
-            onMouseDown={handleResizeStart}
-          />
-          <div
-            className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-white rounded-sm cursor-nw-resize"
-            onMouseDown={handleResizeStart}
-          />
+          <div className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-se-resize" onMouseDown={createResizeHandler("se")} />
+          <div className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-sw-resize" onMouseDown={createResizeHandler("sw")} />
+          <div className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-white rounded-sm cursor-ne-resize" onMouseDown={createResizeHandler("ne")} />
+          <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-white rounded-sm cursor-nw-resize" onMouseDown={createResizeHandler("nw")} />
         </>
       )}
     </div>
