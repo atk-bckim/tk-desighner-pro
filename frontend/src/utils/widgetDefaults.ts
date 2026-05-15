@@ -15,6 +15,8 @@ interface WidgetSpec {
   editableProps: PropSpec[];
 }
 
+const widgetCounters: Record<string, number> = {};
+
 const SPECS: Record<WidgetType, WidgetSpec> = {
   Button: {
     defaultWidth: 120,
@@ -189,6 +191,16 @@ export function getEditableProps(type: WidgetType): PropSpec[] {
   return SPECS[type].editableProps;
 }
 
+export function resetCounters(widgets: WidgetInstance[]) {
+  for (const w of widgets) {
+    const match = w.name.match(/^(.+?)_(\d+)$/);
+    if (match) {
+      const num = parseInt(match[2]);
+      widgetCounters[w.type] = Math.max(widgetCounters[w.type] || 0, num);
+    }
+  }
+}
+
 export function createWidget(
   type: WidgetType,
   x: number,
@@ -196,9 +208,13 @@ export function createWidget(
   parentId: string | null = null,
 ): WidgetInstance {
   const spec = SPECS[type];
+  if (!widgetCounters[type]) widgetCounters[type] = 0;
+  widgetCounters[type]++;
+  const name = `${type.toLowerCase()}_${widgetCounters[type]}`;
   return {
     id: uuid(),
     type,
+    name,
     parentId,
     x,
     y,

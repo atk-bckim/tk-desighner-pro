@@ -2,7 +2,7 @@ import { useDesignerStore } from "../store/designerStore";
 import { getEditableProps } from "../utils/widgetDefaults";
 
 export function PropertyPanel() {
-  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack } =
+  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget } =
     useDesignerStore();
 
   const widget = widgets.find((w) => w.id === selectedId);
@@ -46,6 +46,15 @@ export function PropertyPanel() {
       </div>
 
       <div className="text-xs text-gray-500 mb-3">Type: {widget.type}</div>
+
+      <div className="mb-2">
+        <label className="text-xs text-gray-400">Name
+          <input type="text" className="block w-full bg-gray-700 rounded px-1 py-0.5 text-white mt-0.5 font-mono text-xs"
+            value={widget.name}
+            onChange={(e) => renameWidget(widget.id, e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+          />
+        </label>
+      </div>
 
       {/* Geometry */}
       <div className="mb-3">

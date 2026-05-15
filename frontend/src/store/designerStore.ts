@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { WidgetInstance, WidgetType, Project } from "../types/widgets";
-import { createWidget } from "../utils/widgetDefaults";
+import { createWidget, resetCounters } from "../utils/widgetDefaults";
 import { v4 as uuid } from "uuid";
 
 interface DesignerState {
@@ -16,6 +16,7 @@ interface DesignerState {
   moveWidget: (id: string, x: number, y: number) => void;
   resizeWidget: (id: string, width: number, height: number) => void;
   updateWidgetProp: (id: string, key: string, value: unknown) => void;
+  renameWidget: (id: string, name: string) => void;
   loadProject: (project: Project) => void;
   exportProject: () => Project;
   setProjectName: (name: string) => void;
@@ -87,7 +88,14 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
     }));
   },
 
+  renameWidget: (id, name) => {
+    set((s) => ({
+      widgets: s.widgets.map((w) => (w.id === id ? { ...w, name } : w)),
+    }));
+  },
+
   loadProject: (project) => {
+    resetCounters(project.widgets);
     set({
       projectName: project.name,
       canvasWidth: project.canvasWidth,

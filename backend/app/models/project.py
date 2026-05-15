@@ -11,6 +11,7 @@ WidgetType = Literal[
 class WidgetInstance(BaseModel):
     id: str
     type: str  # Use str instead of Literal to be flexible
+    name: str = ""
     parent_id: str | None = None
     x: float
     y: float

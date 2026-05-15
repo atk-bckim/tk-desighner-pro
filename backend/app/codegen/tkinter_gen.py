@@ -24,7 +24,7 @@ def generate_tkinter_code(project: Project) -> str:
         children_map.setdefault(pid, []).append(w)
 
     def render_widget(w, parent_var: str, indent: str = "    "):
-        var_name = f"{w.type.lower()}_{w.id[:8]}"
+        var_name = w.name if w.name else f"{w.type.lower()}_{w.id[:8]}"
         props_parts: list[str] = []
         for k, v in w.props.items():
             if v == "" or v is None:

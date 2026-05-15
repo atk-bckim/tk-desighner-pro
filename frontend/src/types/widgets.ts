@@ -17,6 +17,7 @@ export type WidgetType =
 export interface WidgetInstance {
   id: string;
   type: WidgetType;
+  name: string;
   parentId: string | null;
   x: number;
   y: number;

@@ -52,6 +52,7 @@ export function Toolbar() {
           widgets: project.widgets.map(w => ({
             id: w.id,
             type: w.type,
+            name: w.name,
             parent_id: w.parentId,
             x: w.x,
             y: w.y,
@@ -80,6 +81,7 @@ export function Toolbar() {
           widgets: project.widgets.map(w => ({
             id: w.id,
             type: w.type,
+            name: w.name,
             parent_id: w.parentId,
             x: w.x,
             y: w.y,
