@@ -2,7 +2,8 @@ import { useDroppable } from "@dnd-kit/core";
 import { useDesignerStore } from "../store/designerStore";
 import type { WidgetInstance } from "../types/widgets";
 import { getAbsolutePosition } from "../utils/position";
-import React, { useRef, useCallback } from "react";
+import { ContextMenu } from "./ContextMenu";
+import React, { useRef, useCallback, useState } from "react";
 
 function getWidgetDynamicStyle(widget: WidgetInstance): React.CSSProperties {
   const props = widget.props;
@@ -89,6 +90,7 @@ function WidgetRenderer({
   onResize,
   renderChild,
   setActiveTab,
+  onContextMenu,
 }: {
   widget: WidgetInstance;
   allWidgets: WidgetInstance[];
@@ -98,6 +100,7 @@ function WidgetRenderer({
   onResize: (id: string, w: number, h: number) => void;
   renderChild: (child: WidgetInstance) => React.ReactNode;
   setActiveTab: (notebookId: string, index: number) => void;
+  onContextMenu: (e: React.MouseEvent, widgetId: string) => void;
 }) {
   const isContainer = widget.type === "Frame" || widget.type === "LabelFrame" || widget.type === "Notebook";
 
@@ -235,6 +238,11 @@ function WidgetRenderer({
       }}
       onMouseDown={handleMouseDown}
       onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu(e, widget.id);
+      }}
     >
       {isContainer ? renderContainerContent() : renderWidgetContent(widget)}
       {isSelected && (
@@ -253,6 +261,7 @@ export function Canvas() {
   const { widgets, selectedId, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab } =
     useDesignerStore();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetId: string } | null>(null);
 
   const rootWidgets = widgets.filter(w => w.parentId === null);
 
@@ -275,6 +284,9 @@ export function Canvas() {
         onResize={(id, w, h) => resizeWidget(id, Math.max(20, snapFn(w)), Math.max(20, snapFn(h)))}
         renderChild={renderWidget}
         setActiveTab={setActiveTab}
+        onContextMenu={(e, widgetId) => {
+          setContextMenu({ x: e.clientX, y: e.clientY, widgetId });
+        }}
       />
     );
   };
@@ -293,6 +305,7 @@ export function Canvas() {
         }}
       >
         {rootWidgets.map(renderWidget)}
+        {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} widgetId={contextMenu.widgetId} onClose={() => setContextMenu(null)} />}
       </div>
     </div>
   );
