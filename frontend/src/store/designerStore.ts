@@ -34,6 +34,8 @@ interface DesignerState {
   snapEnabled: boolean;
   setGridSize: (size: number) => void;
   toggleSnap: () => void;
+
+  alignWidgets: (ids: string[], direction: "left" | "right" | "top" | "bottom" | "centerH" | "centerV") => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -174,4 +176,25 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   setGridSize: (size) => set({ gridSize: size }),
 
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
+
+  alignWidgets: (ids, direction) => {
+    set((s) => {
+      const targets = s.widgets.filter(w => ids.includes(w.id));
+      if (targets.length < 2) return s;
+      const ref = targets[0];
+      const updated = s.widgets.map(w => {
+        if (!ids.includes(w.id)) return w;
+        switch (direction) {
+          case "left": return { ...w, x: ref.x };
+          case "right": return { ...w, x: ref.x + ref.width - w.width };
+          case "top": return { ...w, y: ref.y };
+          case "bottom": return { ...w, y: ref.y + ref.height - w.height };
+          case "centerH": return { ...w, y: ref.y + Math.round((ref.height - w.height) / 2) };
+          case "centerV": return { ...w, x: ref.x + Math.round((ref.width - w.width) / 2) };
+          default: return w;
+        }
+      });
+      return { widgets: updated };
+    });
+  },
 }));
