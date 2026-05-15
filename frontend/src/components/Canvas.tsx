@@ -2,7 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { useDesignerStore } from "../store/designerStore";
 import type { WidgetInstance } from "../types/widgets";
 import { getSpec } from "../utils/widgetDefaults";
-import { useRef, useCallback } from "react";
+import React, { useRef, useCallback } from "react";
 
 const WIDGET_COLORS: Record<string, string> = {
   Button: "bg-blue-900/60 border-blue-500",
@@ -22,12 +22,14 @@ function WidgetRenderer({
   onSelect,
   onMove,
   onResize,
+  children,
 }: {
   widget: WidgetInstance;
   isSelected: boolean;
   onSelect: () => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, w: number, h: number) => void;
+  children?: React.ReactNode;
 }) {
   const moveRef = useRef<{ startX: number; startY: number; widgetX: number; widgetY: number } | null>(null);
 
@@ -104,9 +106,11 @@ function WidgetRenderer({
   const displayText = String(widget.props.text ?? widget.type);
   const spec = getSpec(widget.type);
 
+  const isContainer = widget.type === "Frame" || widget.type === "LabelFrame";
+
   return (
     <div
-      className={`absolute border-2 ${color} rounded flex items-center justify-center cursor-move select-none ${
+      className={`absolute border-2 ${color} rounded flex items-center justify-center cursor-move select-none overflow-hidden ${
         isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-transparent" : ""
       }`}
       style={{
@@ -118,9 +122,15 @@ function WidgetRenderer({
       onMouseDown={handleMouseDown}
       onClick={(e) => e.stopPropagation()}
     >
-      <span className="text-xs text-gray-300 truncate px-1">
-        {spec.defaultProps.text !== undefined ? displayText : widget.type}
-      </span>
+      {isContainer ? (
+        <div className="relative w-full h-full">
+          {children}
+        </div>
+      ) : (
+        <span className="text-xs text-gray-300 truncate px-1">
+          {spec.defaultProps.text !== undefined ? displayText : widget.type}
+        </span>
+      )}
       {isSelected && (
         <>
           <div className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-se-resize" onMouseDown={createResizeHandler("se")} />
@@ -138,12 +148,31 @@ export function Canvas() {
     useDesignerStore();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
 
+  const rootWidgets = widgets.filter(w => w.parentId === null);
+
   const snapFn = (v: number) => snapEnabled ? Math.round(v / gridSize) * gridSize : v;
 
   const gridStyle = snapEnabled ? {
     backgroundImage: `linear-gradient(to right, #f0f0f0 1px, transparent 1px), linear-gradient(to bottom, #f0f0f0 1px, transparent 1px)`,
     backgroundSize: `${gridSize}px ${gridSize}px`,
   } : {};
+
+  const renderWidget = (w: WidgetInstance): React.ReactNode => {
+    const children = widgets.filter(c => c.parentId === w.id);
+    const isContainer = w.type === "Frame" || w.type === "LabelFrame";
+
+    return (
+      <WidgetRenderer
+        key={w.id}
+        widget={w}
+        isSelected={w.id === selectedId}
+        onSelect={() => selectWidget(w.id)}
+        onMove={(id, x, y) => moveWidget(id, snapFn(x), snapFn(y))}
+        onResize={(id, w, h) => resizeWidget(id, Math.max(20, snapFn(w)), Math.max(20, snapFn(h)))}
+        children={isContainer ? children.map(child => renderWidget(child)) : undefined}
+      />
+    );
+  };
 
   return (
     <div className="flex-1 overflow-auto bg-gray-900 p-4">
@@ -158,16 +187,7 @@ export function Canvas() {
           if (e.target === e.currentTarget) selectWidget(null);
         }}
       >
-        {widgets.map((w) => (
-          <WidgetRenderer
-            key={w.id}
-            widget={w}
-            isSelected={w.id === selectedId}
-            onSelect={() => selectWidget(w.id)}
-            onMove={(id, x, y) => moveWidget(id, snapFn(x), snapFn(y))}
-            onResize={(id, w, h) => resizeWidget(id, Math.max(20, snapFn(w)), Math.max(20, snapFn(h)))}
-          />
-        ))}
+        {rootWidgets.map(renderWidget)}
       </div>
     </div>
   );
