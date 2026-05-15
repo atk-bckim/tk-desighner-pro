@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useDesignerStore } from "../store/designerStore";
 import { getEditableProps } from "../utils/widgetDefaults";
+import { FontPicker } from "./FontPicker";
 
 export function PropertyPanel() {
   const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget } =
     useDesignerStore();
+  const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
   const widget = widgets.find((w) => w.id === selectedId);
 
@@ -87,45 +90,60 @@ export function PropertyPanel() {
         <div>
           <h3 className="text-xs font-semibold text-gray-400 mb-1">Widget Properties</h3>
           <div className="flex flex-col gap-2">
-            {editableProps.map((prop) => (
-              <label key={prop.key} className="text-xs text-gray-400">
-                {prop.label}
-                {prop.type === "select" ? (
-                  <select
-                    className="block w-full bg-gray-700 rounded px-1 py-0.5 text-white mt-0.5"
-                    value={String(widget.props[prop.key] ?? "")}
-                    onChange={(e) => updateWidgetProp(widget.id, prop.key, e.target.value)}
-                  >
-                    <option value="">—</option>
-                    {prop.options?.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                ) : prop.type === "color" ? (
-                  <input
-                    type="color"
-                    className="block w-full h-7 bg-gray-700 rounded mt-0.5 cursor-pointer"
-                    value={String(widget.props[prop.key] ?? "#000000")}
-                    onChange={(e) => updateWidgetProp(widget.id, prop.key, e.target.value)}
-                  />
-                ) : (
-                  <input
-                    type={prop.type === "number" ? "number" : "text"}
-                    className="block w-full bg-gray-700 rounded px-1 py-0.5 text-white mt-0.5"
-                    value={String(widget.props[prop.key] ?? "")}
-                    onChange={(e) =>
-                      updateWidgetProp(
-                        widget.id,
-                        prop.key,
-                        prop.type === "number" ? Number(e.target.value) : e.target.value,
-                      )
-                    }
-                  />
-                )}
-              </label>
-            ))}
+            {editableProps.map((prop) => {
+              if (prop.key === "font") {
+                return (
+                  <label key={prop.key} className="text-xs text-gray-400">
+                    {prop.label}
+                    <div className="flex gap-1 mt-0.5">
+                      <input type="text" className="block flex-1 bg-gray-700 rounded px-1 py-0.5 text-white font-mono text-xs"
+                        value={String(widget.props[prop.key] ?? "")}
+                        onChange={(e) => updateWidgetProp(widget.id, prop.key, e.target.value)} />
+                      <button onClick={() => setFontPickerOpen(true)} className="bg-gray-700 hover:bg-gray-600 px-2 rounded text-xs shrink-0">Pick</button>
+                    </div>
+                  </label>
+                );
+              }
+              return (
+                <label key={prop.key} className="text-xs text-gray-400">
+                  {prop.label}
+                  {prop.type === "select" ? (
+                    <select
+                      className="block w-full bg-gray-700 rounded px-1 py-0.5 text-white mt-0.5"
+                      value={String(widget.props[prop.key] ?? "")}
+                      onChange={(e) => updateWidgetProp(widget.id, prop.key, e.target.value)}
+                    >
+                      <option value="">—</option>
+                      {prop.options?.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  ) : prop.type === "color" ? (
+                    <input
+                      type="color"
+                      className="block w-full h-7 bg-gray-700 rounded mt-0.5 cursor-pointer"
+                      value={String(widget.props[prop.key] ?? "#000000")}
+                      onChange={(e) => updateWidgetProp(widget.id, prop.key, e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      type={prop.type === "number" ? "number" : "text"}
+                      className="block w-full bg-gray-700 rounded px-1 py-0.5 text-white mt-0.5"
+                      value={String(widget.props[prop.key] ?? "")}
+                      onChange={(e) =>
+                        updateWidgetProp(
+                          widget.id,
+                          prop.key,
+                          prop.type === "number" ? Number(e.target.value) : e.target.value,
+                        )
+                      }
+                    />
+                  )}
+                </label>
+              );
+            })}
           </div>
         </div>
       )}
@@ -138,6 +156,14 @@ export function PropertyPanel() {
           <button onClick={() => sendToBack(widget.id)} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded flex-1">To Back</button>
         </div>
       </div>
+
+      {fontPickerOpen && (
+        <FontPicker
+          value={String(widget?.props.font ?? "")}
+          onChange={(v) => widget && updateWidgetProp(widget.id, "font", v)}
+          onClose={() => setFontPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
