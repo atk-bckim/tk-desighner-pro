@@ -24,4 +24,5 @@ class Project(BaseModel):
     name: str = "Untitled"
     canvas_width: int = 800
     canvas_height: int = 600
+    tk_theme: str = "default"
     widgets: list[WidgetInstance]

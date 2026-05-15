@@ -9,9 +9,11 @@ function generateCode(
   widgets: ReturnType<typeof useDesignerStore.getState>["widgets"],
   canvasWidth: number,
   canvasHeight: number,
+  tkTheme: string,
 ): string {
   const lines: string[] = [
     "import tkinter as tk",
+    "from tkinter import ttk",
     "",
     "",
     "def create_window():",
@@ -20,6 +22,12 @@ function generateCode(
     `    root.title("Tkinter Designer")`,
     "",
   ];
+
+  if (tkTheme && tkTheme !== "default") {
+    lines.push("    style = ttk.Style(root)");
+    lines.push(`    style.theme_use("${tkTheme}")`);
+    lines.push("");
+  }
 
   for (const w of widgets) {
     const varName = w.name || `${w.type.toLowerCase()}_${w.id.slice(0, 8)}`;
@@ -53,9 +61,9 @@ function generateCode(
 }
 
 export function CodePreview() {
-  const { widgets, canvasWidth, canvasHeight } = useDesignerStore();
+  const { widgets, canvasWidth, canvasHeight, tkTheme } = useDesignerStore();
   const [open, setOpen] = useState(false);
-  const code = generateCode(widgets, canvasWidth, canvasHeight);
+  const code = generateCode(widgets, canvasWidth, canvasHeight, tkTheme);
 
   return (
     <div className="bg-gray-800 border-t border-gray-700 shrink-0">

@@ -18,6 +18,12 @@ def generate_tkinter_code(project: Project) -> str:
         "",
     ]
 
+    # Theme setup
+    if project.tk_theme and project.tk_theme != "default":
+        lines.append("    style = ttk.Style(root)")
+        lines.append(f'    style.theme_use("{_escape(project.tk_theme)}")')
+        lines.append("")
+
     # Build parent-child map
     children_map: dict[str | None, list] = {}
     for w in project.widgets:

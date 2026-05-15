@@ -6,7 +6,7 @@ import { FontPicker } from "./FontPicker";
 export function PropertyPanel() {
   const selectedIds = useDesignerStore((s) => s.selectedIds);
   const widgets = useDesignerStore((s) => s.widgets);
-  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets } =
+  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets, tkTheme, setTkTheme } =
     useDesignerStore();
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
@@ -48,6 +48,16 @@ export function PropertyPanel() {
                 value={canvasHeight} onChange={(e) => setCanvasSize(canvasWidth, parseInt(e.target.value) || 600)} />
             </label>
           </div>
+        </div>
+        <div className="mt-3">
+          <h3 className="text-xs font-semibold text-gray-400 mb-1">Tkinter Theme</h3>
+          <select className="block w-full bg-gray-700 rounded px-1 py-0.5 text-white text-xs"
+            value={tkTheme} onChange={(e) => setTkTheme(e.target.value)}>
+            <option value="default">Default</option>
+            <option value="clam">Clam</option>
+            <option value="alt">Alt</option>
+            <option value="classic">Classic</option>
+          </select>
         </div>
         <p className="text-xs text-gray-500 mt-4">Select a widget to edit its properties</p>
       </div>
