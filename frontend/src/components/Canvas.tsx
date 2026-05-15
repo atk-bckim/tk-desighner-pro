@@ -102,6 +102,7 @@ function WidgetRenderer({
         height: widget.height,
       }}
       onMouseDown={handleMouseDown}
+      onClick={(e) => e.stopPropagation()}
     >
       <span className="text-xs text-gray-300 truncate px-1">
         {spec.defaultProps.text !== undefined ? displayText : widget.type}
@@ -144,7 +145,9 @@ export function Canvas() {
           isOver ? "border-blue-400" : "border-gray-600"
         }`}
         style={{ width: canvasWidth, height: canvasHeight }}
-        onClick={() => selectWidget(null)}
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) selectWidget(null);
+        }}
       >
         {widgets.map((w) => (
           <WidgetRenderer
