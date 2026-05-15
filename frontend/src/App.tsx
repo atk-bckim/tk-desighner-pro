@@ -65,6 +65,20 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Canvas zoom with Ctrl+scroll
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const store = useDesignerStore.getState();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        store.setZoom(store.zoom + delta);
+      }
+    };
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, []);
+
   const handleDragEnd = (event: DragEndEvent) => {
     setDraggingType(null);
     const { active, over } = event;

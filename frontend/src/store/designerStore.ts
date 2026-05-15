@@ -40,6 +40,9 @@ interface DesignerState {
 
   toggleLock: (id: string) => void;
 
+  zoom: number;
+  setZoom: (z: number) => void;
+
   addTab: (notebookId: string) => void;
   removeTab: (notebookId: string, tabId: string) => void;
   setActiveTab: (notebookId: string, index: number) => void;
@@ -281,6 +284,9 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       widgets: s.widgets.map(w => w.id === id ? { ...w, locked: !w.locked } : w),
     }));
   },
+
+  zoom: 1,
+  setZoom: (z) => set({ zoom: Math.max(0.25, Math.min(3, Math.round(z * 100) / 100)) }),
 
   addTab: (notebookId: string) => {
     const tabs = get().widgets.filter(w => w.parentId === notebookId);

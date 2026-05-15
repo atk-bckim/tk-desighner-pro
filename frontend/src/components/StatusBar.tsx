@@ -1,7 +1,7 @@
 import { useDesignerStore } from "../store/designerStore";
 
 export function StatusBar() {
-  const { widgets, selectedIds, canvasWidth, canvasHeight, gridSize, snapEnabled } = useDesignerStore();
+  const { widgets, selectedIds, canvasWidth, canvasHeight, gridSize, snapEnabled, zoom } = useDesignerStore();
   const selected = selectedIds.length === 1 ? widgets.find(w => w.id === selectedIds[0]) : null;
 
   return (
@@ -15,7 +15,8 @@ export function StatusBar() {
           <span>{Math.round(selected.width)}x{Math.round(selected.height)}</span>
         </>
       )}
-      <span className="ml-auto">Grid: {snapEnabled ? `${gridSize}px` : "off"}</span>
+      <span className="ml-auto">Zoom: {(zoom * 100).toFixed(0)}%</span>
+      <span>Grid: {snapEnabled ? `${gridSize}px` : "off"}</span>
     </div>
   );
 }

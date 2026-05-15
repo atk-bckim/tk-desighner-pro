@@ -316,7 +316,7 @@ function WidgetRenderer({
 }
 
 export function Canvas() {
-  const { widgets, selectedIds, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab } =
+  const { widgets, selectedIds, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab, zoom } =
     useDesignerStore();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetId: string } | null>(null);
@@ -401,35 +401,42 @@ export function Canvas() {
         className={`relative bg-white border-2 border-dashed ${
           isOver ? "border-blue-400" : "border-gray-600"
         }`}
-        style={{ width: canvasWidth, height: canvasHeight, ...gridStyle }}
+        style={{ width: canvasWidth * zoom, height: canvasHeight * zoom }}
         onMouseDown={(e) => {
           if (e.button !== 0) return;
           if (e.target === e.currentTarget) {
             const rect = e.currentTarget.getBoundingClientRect();
-            setSelRect({ sx: e.clientX - rect.left, sy: e.clientY - rect.top, ex: e.clientX - rect.left, ey: e.clientY - rect.top });
+            setSelRect({
+              sx: (e.clientX - rect.left) / zoom,
+              sy: (e.clientY - rect.top) / zoom,
+              ex: (e.clientX - rect.left) / zoom,
+              ey: (e.clientY - rect.top) / zoom,
+            });
             selectWidget(null);
           }
         }}
       >
-        {rootWidgets.map(renderWidget)}
-        {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} widgetId={contextMenu.widgetId} onClose={() => setContextMenu(null)} />}
-        {selRect && (
-          <div
-            className="absolute border border-blue-400 bg-blue-400/10 pointer-events-none"
-            style={{
-              left: Math.min(selRect.sx, selRect.ex),
-              top: Math.min(selRect.sy, selRect.ey),
-              width: Math.abs(selRect.ex - selRect.sx),
-              height: Math.abs(selRect.ey - selRect.sy),
-            }}
-          />
-        )}
-        {guides.v.map((x, i) => (
-          <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-red-400 pointer-events-none z-50" style={{ left: x }} />
-        ))}
-        {guides.h.map((y, i) => (
-          <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-red-400 pointer-events-none z-50" style={{ top: y }} />
-        ))}
+        <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: canvasWidth, height: canvasHeight, ...gridStyle }}>
+          {rootWidgets.map(renderWidget)}
+          {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} widgetId={contextMenu.widgetId} onClose={() => setContextMenu(null)} />}
+          {selRect && (
+            <div
+              className="absolute border border-blue-400 bg-blue-400/10 pointer-events-none"
+              style={{
+                left: Math.min(selRect.sx, selRect.ex),
+                top: Math.min(selRect.sy, selRect.ey),
+                width: Math.abs(selRect.ex - selRect.sx),
+                height: Math.abs(selRect.ey - selRect.sy),
+              }}
+            />
+          )}
+          {guides.v.map((x, i) => (
+            <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-red-400 pointer-events-none z-50" style={{ left: x }} />
+          ))}
+          {guides.h.map((y, i) => (
+            <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-red-400 pointer-events-none z-50" style={{ top: y }} />
+          ))}
+        </div>
       </div>
     </div>
   );
