@@ -4,7 +4,7 @@ import { getEditableProps } from "../utils/widgetDefaults";
 import { FontPicker } from "./FontPicker";
 
 export function PropertyPanel() {
-  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab } =
+  const { widgets, selectedId, moveWidget, resizeWidget, updateWidgetProp, removeWidget, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock } =
     useDesignerStore();
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
@@ -40,12 +40,17 @@ export function PropertyPanel() {
     <div className="w-64 bg-gray-800 border-l border-gray-700 p-3 overflow-y-auto shrink-0">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-gray-400">Properties</h2>
-        <button
-          onClick={() => removeWidget(widget.id)}
-          className="text-red-400 hover:text-red-300 text-xs"
-        >
-          Delete
-        </button>
+        <div className="flex gap-1">
+          <button onClick={() => toggleLock(widget.id)} className={`text-xs px-2 py-0.5 rounded ${widget.locked ? "bg-amber-700 text-amber-200" : "bg-gray-700 text-gray-400 hover:bg-gray-600"}`}>
+            {widget.locked ? "\u{1F512}" : "\u{1F513}"}
+          </button>
+          <button
+            onClick={() => removeWidget(widget.id)}
+            className="text-red-400 hover:text-red-300 text-xs"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <div className="text-xs text-gray-500 mb-3">Type: {widget.type}</div>

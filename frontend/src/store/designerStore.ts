@@ -38,6 +38,8 @@ interface DesignerState {
 
   alignWidgets: (ids: string[], direction: "left" | "right" | "top" | "bottom" | "centerH" | "centerV") => void;
 
+  toggleLock: (id: string) => void;
+
   addTab: (notebookId: string) => void;
   removeTab: (notebookId: string, tabId: string) => void;
   setActiveTab: (notebookId: string, index: number) => void;
@@ -263,6 +265,12 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       });
       return { widgets: updated };
     });
+  },
+
+  toggleLock: (id: string) => {
+    set((s) => ({
+      widgets: s.widgets.map(w => w.id === id ? { ...w, locked: !w.locked } : w),
+    }));
   },
 
   addTab: (notebookId: string) => {

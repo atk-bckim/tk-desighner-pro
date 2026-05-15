@@ -25,6 +25,7 @@ export interface WidgetInstance {
   width: number;
   height: number;
   props: Record<string, unknown>;
+  locked: boolean;
 }
 
 export interface Project {

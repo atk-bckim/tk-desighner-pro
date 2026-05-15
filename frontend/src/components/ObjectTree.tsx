@@ -24,6 +24,7 @@ function TreeNode({ widget, depth = 0 }: { widget: WidgetInstance; depth?: numbe
           <span className="w-3 shrink-0" />
         )}
         <span className="truncate flex-1">{widget.name || String(widget.props.text ?? widget.type)}</span>
+        {widget.locked && <span className="text-amber-500 text-[8px]">&#128274;</span>}
         <span className="text-gray-600 text-right">{widget.type}</span>
       </div>
       {expanded && children.map(child => <TreeNode key={child.id} widget={child} depth={depth + 1} />)}

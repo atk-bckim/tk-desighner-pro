@@ -118,6 +118,7 @@ function WidgetRenderer({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       onSelect();
+      if (widget.locked) return;
       moveRef.current = {
         startX: e.clientX,
         startY: e.clientY,
@@ -141,7 +142,7 @@ function WidgetRenderer({
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [widget.id, widget.x, widget.y, onSelect, onMove],
+    [widget.id, widget.x, widget.y, widget.locked, onSelect, onMove],
   );
 
   const createResizeHandler = useCallback(
@@ -245,13 +246,16 @@ function WidgetRenderer({
       }}
     >
       {isContainer ? renderContainerContent() : renderWidgetContent(widget)}
-      {isSelected && (
+      {isSelected && !widget.locked && (
         <>
           <div className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-se-resize" onMouseDown={createResizeHandler("se")} />
           <div className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-sw-resize" onMouseDown={createResizeHandler("sw")} />
           <div className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-white rounded-sm cursor-ne-resize" onMouseDown={createResizeHandler("ne")} />
           <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-white rounded-sm cursor-nw-resize" onMouseDown={createResizeHandler("nw")} />
         </>
+      )}
+      {widget.locked && (
+        <div className="absolute top-0.5 right-0.5 text-[8px] text-gray-500">&#128274;</div>
       )}
     </div>
   );

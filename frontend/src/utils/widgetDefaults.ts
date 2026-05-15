@@ -227,5 +227,6 @@ export function createWidget(
     width: spec.defaultWidth,
     height: spec.defaultHeight,
     props: { ...spec.defaultProps },
+    locked: false,
   };
 }
