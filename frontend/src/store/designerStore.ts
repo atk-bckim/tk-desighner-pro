@@ -1,8 +1,9 @@
 import { create } from "zustand";
-import type { WidgetInstance, WidgetType, Project } from "../types/widgets";
+import type { WidgetInstance, WidgetType, Project, MenuBarData, MenuItemData } from "../types/widgets";
 import { createWidget, resetCounters } from "../utils/widgetDefaults";
 import { TEMPLATES } from "../templates/index";
 import { v4 as uuid } from "uuid";
+import { getAbsolutePosition } from "../utils/position";
 
 interface DesignerState {
   projectName: string;
@@ -32,6 +33,12 @@ interface DesignerState {
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
   setCanvasSize: (width: number, height: number) => void;
+
+  rootBg: string;
+  setRootBg: (color: string) => void;
+  rootResizable: boolean;
+  setRootResizable: (v: boolean) => void;
+
   gridSize: number;
   snapEnabled: boolean;
   setGridSize: (size: number) => void;
@@ -51,6 +58,31 @@ interface DesignerState {
   tkTheme: string;
   setTkTheme: (theme: string) => void;
   loadTemplate: (templateKey: string) => void;
+
+  reparentWidget: (widgetId: string, newParentId: string | null) => void;
+
+  mousePos: { x: number; y: number } | null;
+  setMousePos: (pos: { x: number; y: number } | null) => void;
+
+  clipboard: WidgetInstance[];
+  copyWidgets: (ids: string[]) => void;
+  pasteWidgets: () => void;
+  selectAll: () => void;
+  distributeWidgets: (ids: string[], direction: "horizontal" | "vertical") => void;
+  makeSameSize: (ids: string[], dimension: "width" | "height" | "both") => void;
+
+  menuBar: MenuBarData | null;
+  addMenuBar: () => void;
+  removeMenuBar: () => void;
+  addMenu: (label: string) => void;
+  removeMenu: (menuId: string) => void;
+  renameMenu: (menuId: string, label: string) => void;
+  addMenuItem: (menuId: string, label: string) => void;
+  removeMenuItem: (menuId: string, itemId: string) => void;
+  updateMenuItem: (menuId: string, itemId: string, updates: Partial<MenuItemData>) => void;
+
+  updateWidgetEvent: (id: string, eventName: string, code: string) => void;
+  removeWidgetEvent: (id: string, eventName: string) => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -90,34 +122,11 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   },
 
   moveWidget: (id, x, y) => {
-    set((s) => {
-      const widget = s.widgets.find((w) => w.id === id);
-      if (!widget) return s;
-      const dx = x - widget.x;
-      const dy = y - widget.y;
-
-      // Collect all descendant IDs
-      const collectDescendants = (parentId: string): string[] => {
-        const ids: string[] = [];
-        s.widgets
-          .filter((w) => w.parentId === parentId)
-          .forEach((w) => {
-            ids.push(w.id);
-            ids.push(...collectDescendants(w.id));
-          });
-        return ids;
-      };
-      const descendantIds = collectDescendants(id);
-
-      return {
-        widgets: s.widgets.map((w) => {
-          if (w.id === id) return { ...w, x, y };
-          if (descendantIds.includes(w.id))
-            return { ...w, x: w.x + dx, y: w.y + dy };
-          return w;
-        }),
-      };
-    });
+    set((s) => ({
+      widgets: s.widgets.map((w) =>
+        w.id === id ? { ...w, x, y } : w
+      ),
+    }));
   },
 
   resizeWidget: (id, width, height) => {
@@ -150,6 +159,9 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       canvasHeight: project.canvasHeight,
       widgets: project.widgets,
       selectedIds: [],
+      menuBar: project.menuBar ?? null,
+      rootBg: project.rootBg ?? "",
+      rootResizable: project.rootResizable ?? true,
     });
   },
 
@@ -160,6 +172,9 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       canvasWidth: s.canvasWidth,
       canvasHeight: s.canvasHeight,
       widgets: s.widgets,
+      menuBar: s.menuBar,
+      rootBg: s.rootBg,
+      rootResizable: s.rootResizable,
     };
   },
 
@@ -170,7 +185,10 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
 
   snapshot: () => {
     const current = get().widgets;
-    set((s) => ({ undoStack: [...s.undoStack, current], redoStack: [] }));
+    set((s) => {
+      const stack = [...s.undoStack, current];
+      return { undoStack: stack.length > 100 ? stack.slice(-100) : stack, redoStack: [] };
+    });
   },
 
   undo: () => {
@@ -256,6 +274,11 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
 
   setCanvasSize: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
 
+  rootBg: "",
+  setRootBg: (color) => set({ rootBg: color }),
+  rootResizable: true,
+  setRootResizable: (v) => set({ rootResizable: v }),
+
   gridSize: 10,
   snapEnabled: true,
 
@@ -320,5 +343,235 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
     if (!template) return;
     const widgets = template.create();
     set({ widgets, selectedIds: [], undoStack: [], redoStack: [] });
+  },
+
+  mousePos: null,
+  setMousePos: (pos) => set({ mousePos: pos }),
+
+  reparentWidget: (widgetId, newParentId) => {
+    const { widgets } = get();
+
+    // Prevent dropping onto self
+    if (widgetId === newParentId) return;
+
+    // Prevent circular: check if newParentId is a descendant of widgetId
+    if (newParentId) {
+      const collectDescendants = (id: string): Set<string> => {
+        const set = new Set<string>();
+        widgets.filter(w => w.parentId === id).forEach(w => {
+          set.add(w.id);
+          collectDescendants(w.id).forEach(d => set.add(d));
+        });
+        return set;
+      };
+      if (collectDescendants(widgetId).has(newParentId)) return;
+    }
+
+    const widget = widgets.find(w => w.id === widgetId);
+    if (!widget) return;
+
+    // Compute current absolute position
+    const currentAbs = getAbsolutePosition(widget, widgets);
+
+    // Compute new relative position within new parent
+    let newX = currentAbs.x;
+    let newY = currentAbs.y;
+    if (newParentId) {
+      const newParent = widgets.find(w => w.id === newParentId);
+      if (newParent) {
+        const parentAbs = getAbsolutePosition(newParent, widgets);
+        newX = currentAbs.x - parentAbs.x;
+        newY = currentAbs.y - parentAbs.y;
+      }
+    }
+
+    set((s) => ({
+      widgets: s.widgets.map(w =>
+        w.id === widgetId ? { ...w, parentId: newParentId, x: newX, y: newY } : w
+      ),
+    }));
+  },
+
+  clipboard: [],
+
+  copyWidgets: (ids) => {
+    const { widgets } = get();
+    // Copy widgets and their descendants
+    const toCopy = new Set<string>();
+    const collect = (id: string) => {
+      toCopy.add(id);
+      widgets.filter(w => w.parentId === id).forEach(w => collect(w.id));
+    };
+    ids.forEach(id => collect(id));
+    set({ clipboard: widgets.filter(w => toCopy.has(w.id)).map(w => ({ ...w, props: { ...w.props } })) });
+  },
+
+  pasteWidgets: () => {
+    const { clipboard } = get();
+    if (clipboard.length === 0) return;
+    const idMap = new Map<string, string>();
+    const clones: WidgetInstance[] = [];
+    const clipboardIds = new Set(clipboard.map(w => w.id));
+
+    // First pass: create all new IDs
+    for (const orig of clipboard) {
+      idMap.set(orig.id, uuid());
+    }
+
+    // Second pass: create clones with mapped IDs
+    for (const orig of clipboard) {
+      const newParentId = orig.parentId && clipboardIds.has(orig.parentId)
+        ? idMap.get(orig.parentId)!
+        : orig.parentId;
+      clones.push({
+        ...orig,
+        id: idMap.get(orig.id)!,
+        name: orig.name + "_paste",
+        parentId: newParentId,
+        x: orig.x + 20,
+        y: orig.y + 20,
+        props: { ...orig.props },
+      });
+    }
+
+    // Select root clones (those whose original parentId was not in clipboard)
+    const rootIds = clipboard
+      .filter(w => !w.parentId || !clipboardIds.has(w.parentId))
+      .map(w => idMap.get(w.id)!);
+
+    set((s) => ({
+      widgets: [...s.widgets, ...clones],
+      selectedIds: rootIds,
+    }));
+  },
+
+  selectAll: () => {
+    set((s) => ({ selectedIds: s.widgets.map(w => w.id) }));
+  },
+
+  menuBar: null,
+
+  addMenuBar: () => set({ menuBar: { menus: [
+    { id: uuid(), label: "File", items: [
+      { id: uuid(), label: "New", accelerator: "Ctrl+N" },
+      { id: uuid(), label: "Exit", accelerator: "" },
+    ] },
+  ] } }),
+
+  removeMenuBar: () => set({ menuBar: null }),
+
+  addMenu: (label) => set((s) => {
+    if (!s.menuBar) return s;
+    return { menuBar: { ...s.menuBar, menus: [...s.menuBar.menus, { id: uuid(), label, items: [] }] } };
+  }),
+
+  removeMenu: (menuId) => set((s) => {
+    if (!s.menuBar) return s;
+    return { menuBar: { ...s.menuBar, menus: s.menuBar.menus.filter(m => m.id !== menuId) } };
+  }),
+
+  renameMenu: (menuId, label) => set((s) => {
+    if (!s.menuBar) return s;
+    return { menuBar: { ...s.menuBar, menus: s.menuBar.menus.map(m => m.id === menuId ? { ...m, label } : m) } };
+  }),
+
+  addMenuItem: (menuId, label) => set((s) => {
+    if (!s.menuBar) return s;
+    return { menuBar: { ...s.menuBar, menus: s.menuBar.menus.map(m =>
+      m.id === menuId ? { ...m, items: [...m.items, { id: uuid(), label, accelerator: "" }] } : m
+    ) } };
+  }),
+
+  removeMenuItem: (menuId, itemId) => set((s) => {
+    if (!s.menuBar) return s;
+    return { menuBar: { ...s.menuBar, menus: s.menuBar.menus.map(m =>
+      m.id === menuId ? { ...m, items: m.items.filter(i => i.id !== itemId) } : m
+    ) } };
+  }),
+
+  updateMenuItem: (menuId, itemId, updates) => set((s) => {
+    if (!s.menuBar) return s;
+    return { menuBar: { ...s.menuBar, menus: s.menuBar.menus.map(m =>
+      m.id === menuId ? { ...m, items: m.items.map(i => i.id === itemId ? { ...i, ...updates } : i) } : m
+    ) } };
+  }),
+
+  distributeWidgets: (ids, direction) => {
+    set((s) => {
+      const targets = s.widgets.filter(w => ids.includes(w.id));
+      if (targets.length < 3) return s;
+      const sorted = direction === "horizontal"
+        ? [...targets].sort((a, b) => a.x - b.x)
+        : [...targets].sort((a, b) => a.y - b.y);
+
+      const totalSize = direction === "horizontal"
+        ? sorted.reduce((sum, w) => sum + w.width, 0)
+        : sorted.reduce((sum, w) => sum + w.height, 0);
+      const minPos = direction === "horizontal" ? sorted[0].x : sorted[0].y;
+      const maxPos = direction === "horizontal"
+        ? sorted[sorted.length - 1].x + sorted[sorted.length - 1].width
+        : sorted[sorted.length - 1].y + sorted[sorted.length - 1].height;
+      const gap = (maxPos - minPos - totalSize) / (sorted.length - 1);
+
+      const updated = [...sorted];
+      let current = minPos;
+      for (let i = 0; i < updated.length; i++) {
+        if (direction === "horizontal") {
+          updated[i] = { ...updated[i], x: Math.round(current) };
+          current += updated[i].width + gap;
+        } else {
+          updated[i] = { ...updated[i], y: Math.round(current) };
+          current += updated[i].height + gap;
+        }
+      }
+
+      const updatedMap = new Map(updated.map(w => [w.id, w]));
+      return {
+        widgets: s.widgets.map(w => updatedMap.has(w.id) ? updatedMap.get(w.id)! : w),
+      };
+    });
+  },
+
+  makeSameSize: (ids, dimension) => {
+    set((s) => {
+      const targets = s.widgets.filter(w => ids.includes(w.id));
+      if (targets.length < 2) return s;
+      const ref = targets[0];
+      const updated = s.widgets.map(w => {
+        if (!ids.includes(w.id)) return w;
+        return {
+          ...w,
+          width: (dimension === "width" || dimension === "both") ? ref.width : w.width,
+          height: (dimension === "height" || dimension === "both") ? ref.height : w.height,
+        };
+      });
+      return { widgets: updated };
+    });
+  },
+
+  updateWidgetEvent: (id, eventName, code) => {
+    set((s) => ({
+      widgets: s.widgets.map(w => {
+        if (w.id !== id) return w;
+        const events = { ...w.events };
+        if (code.trim()) {
+          events[eventName] = code;
+        } else {
+          delete events[eventName];
+        }
+        return { ...w, events };
+      }),
+    }));
+  },
+
+  removeWidgetEvent: (id, eventName) => {
+    set((s) => ({
+      widgets: s.widgets.map(w => {
+        if (w.id !== id) return w;
+        const events = { ...w.events };
+        delete events[eventName];
+        return { ...w, events };
+      }),
+    }));
   },
 }));

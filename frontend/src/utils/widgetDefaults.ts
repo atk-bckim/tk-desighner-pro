@@ -23,6 +23,15 @@ export function isTtk(type: WidgetType): boolean {
 
 const widgetCounters: Record<string, number> = {};
 
+const NAME_PREFIXES: Record<WidgetType, string> = {
+  Button: "btn", Label: "lbl", Entry: "entry", Text: "txt",
+  Checkbutton: "chk", Radiobutton: "rdo", Listbox: "lst", Scale: "scl",
+  Frame: "frm", LabelFrame: "grp", OptionMenu: "opt", Spinbox: "spn",
+  Scrollbar: "sb", Separator: "sep", Notebook: "nbk", Toplevel: "win",
+  Progressbar: "pbar", Combobox: "cbo", Treeview: "tree", Sizegrip: "grip",
+  Menubutton: "mbtn", Message: "msg",
+};
+
 const SPECS: Record<WidgetType, WidgetSpec> = {
   Button: {
     defaultWidth: 120,
@@ -335,7 +344,7 @@ export function createWidget(
   const spec = SPECS[type];
   if (!widgetCounters[type]) widgetCounters[type] = 0;
   widgetCounters[type]++;
-  const name = `${type.toLowerCase()}_${widgetCounters[type]}`;
+  const name = `${NAME_PREFIXES[type]}_${widgetCounters[type]}`;
   return {
     id: uuid(),
     type,
