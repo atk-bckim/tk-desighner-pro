@@ -8,6 +8,15 @@ import { Ruler } from "./Ruler";
 import { WIDGET_EVENTS } from "../utils/widgetDefaults";
 import React, { useRef, useCallback, useState, useEffect } from "react";
 
+function getReliefShadow(relief: string): React.CSSProperties {
+  if (relief === "raised") return { boxShadow: "1px 1px 0 0 #888, inset 1px 1px 0 0 #fff" };
+  if (relief === "sunken") return { boxShadow: "inset 1px 1px 2px 0 rgba(0,0,0,0.4), inset -1px -1px 0 0 rgba(255,255,255,0.3)" };
+  if (relief === "groove") return { boxShadow: "inset 1px 1px 0 0 #888, inset -1px -1px 0 0 #ccc, 1px 1px 0 0 #ccc, -1px -1px 0 0 #888" };
+  if (relief === "ridge") return { boxShadow: "inset 1px 1px 0 0 #ccc, inset -1px -1px 0 0 #888, 1px 1px 0 0 #888, -1px -1px 0 0 #ccc" };
+  if (relief === "flat") return { boxShadow: "none" };
+  return {};
+}
+
 function getWidgetDynamicStyle(widget: WidgetInstance): React.CSSProperties {
   const props = widget.props;
   const style: React.CSSProperties = {};
@@ -16,14 +25,10 @@ function getWidgetDynamicStyle(widget: WidgetInstance): React.CSSProperties {
   if (props.fg && typeof props.fg === "string") style.color = props.fg;
 
   const bd = typeof props.bd === "number" ? props.bd : undefined;
-  if (bd !== undefined) style.borderWidth = `${bd}px`;
+  if (bd !== undefined) { style.borderWidth = `${bd}px`; style.borderStyle = "solid"; style.borderColor = "#888"; }
 
-  const relief = typeof props.relief === "string" ? props.relief : undefined;
-  if (relief === "raised") style.boxShadow = "1px 1px 0 0 #888, inset 1px 1px 0 0 #fff";
-  else if (relief === "sunken") style.boxShadow = "inset 1px 1px 2px 0 rgba(0,0,0,0.4), inset -1px -1px 0 0 rgba(255,255,255,0.3)";
-  else if (relief === "groove") style.boxShadow = "inset 1px 1px 0 0 #888, inset -1px -1px 0 0 #ccc, 1px 1px 0 0 #ccc, -1px -1px 0 0 #888";
-  else if (relief === "ridge") style.boxShadow = "inset 1px 1px 0 0 #ccc, inset -1px -1px 0 0 #888, 1px 1px 0 0 #888, -1px -1px 0 0 #ccc";
-  else if (relief === "flat") style.boxShadow = "none";
+  const relief = typeof props.relief === "string" ? props.relief : "";
+  if (relief) Object.assign(style, getReliefShadow(relief));
 
   if (props.font && typeof props.font === "string") {
     const m = props.font.match(/["'](\w+)["']\s*,\s*(\d+)/);
@@ -148,6 +153,11 @@ function renderWidgetContent(widget: WidgetInstance) {
       return (
         <div className="w-full h-full relative">
           <div className="absolute inset-0 bg-white" style={{ boxShadow: "inset 1px 1px 2px rgba(0,0,0,0.3)" }} />
+          {typeof widget.props.show === "string" && widget.props.show && (
+            <div className="absolute inset-0 flex items-center px-1">
+              <span className="text-xs text-gray-400 tracking-wider">{widget.props.show.repeat(5)}</span>
+            </div>
+          )}
           <div className="absolute bottom-0 left-0 right-0 h-px bg-black" />
         </div>
       );
@@ -408,6 +418,10 @@ function WidgetRenderer({
     }
 
     // Frame / LabelFrame / Toplevel
+    const containerRelief = typeof widget.props.relief === "string" ? widget.props.relief : "";
+    const containerBd = typeof widget.props.bd === "number" ? widget.props.bd : 1;
+    const hasReliefStyle = containerRelief && containerRelief !== "flat";
+
     return (
       <div className="relative w-full h-full">
         {widget.type === "Toplevel" && (
@@ -421,12 +435,15 @@ function WidgetRenderer({
           </div>
         )}
         {widget.type === "LabelFrame" && (
-          <fieldset className="absolute inset-0 border border-gray-400 rounded m-0 p-0">
+          <fieldset className="absolute inset-0 rounded m-0 p-0" style={{ borderWidth: containerBd, borderColor: "#888", borderStyle: "solid", ...getReliefShadow(containerRelief) }}>
             <legend className="text-xs text-gray-600 px-1 ml-1">{String(widget.props.text ?? "") || "LabelFrame"}</legend>
           </fieldset>
         )}
-        {widget.type === "Frame" && !widget.props.bg && (
+        {widget.type === "Frame" && !widget.props.bg && !hasReliefStyle && (
           <div className="absolute inset-0 border border-dashed border-gray-300 rounded pointer-events-none" />
+        )}
+        {widget.type === "Frame" && (widget.props.bg || hasReliefStyle) && (
+          <div className="absolute inset-0 rounded pointer-events-none" style={{ borderWidth: containerBd, borderColor: "#888", borderStyle: "solid", ...getReliefShadow(containerRelief) }} />
         )}
         <div className={widget.type === "Toplevel" ? "w-full h-full pt-6" : "w-full h-full"}>
           {allWidgets.filter(c => c.parentId === widget.id).map(child => renderChild(child))}
@@ -438,7 +455,7 @@ function WidgetRenderer({
   return (
     <div
       ref={isContainer ? setFrameRef : undefined}
-      className={`absolute border border-gray-300 rounded flex items-center justify-center cursor-move select-none overflow-hidden ${
+      className={`absolute border border-gray-300 rounded flex items-center justify-center cursor-move select-none ${
         isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent" : ""
       } ${isContainer && isFrameOver ? "ring-2 ring-green-400" : ""}`}
       style={{
