@@ -3,7 +3,7 @@ import { TEMPLATES } from "../templates/index";
 import { showToast } from "./Toast";
 
 export function Toolbar() {
-  const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap, loadTemplate, zoom, setZoom } =
+  const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap, loadTemplate, zoom, setZoom, tabOrderMode, toggleTabOrderMode } =
     useDesignerStore();
   const undoStackLen = useDesignerStore((s) => s.undoStack.length);
   const redoStackLen = useDesignerStore((s) => s.redoStack.length);
@@ -151,6 +151,13 @@ export function Toolbar() {
           </div>
         </div>
       </div>
+      <button
+        onClick={toggleTabOrderMode}
+        className={`${btnGhost} ${tabOrderMode ? "!text-[#f59e0b] !bg-[#f59e0b]/10" : ""}`}
+        title="Tab Order"
+      >
+        Tab Order
+      </button>
       <div className="flex-1" />
       <div className="relative group">
         <button className={btnGhost}>{(zoom * 100).toFixed(0)}%</button>

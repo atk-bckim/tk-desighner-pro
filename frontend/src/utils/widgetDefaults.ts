@@ -46,6 +46,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
       { key: "bd", label: "Border width", type: "number" },
       { key: "command", label: "Command", type: "text" },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Label: {
@@ -74,6 +75,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "readonly"] },
       { key: "textvariable", label: "Text variable", type: "text" },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Text: {
@@ -87,6 +89,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled"] },
       { key: "textvariable", label: "Text variable", type: "text" },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Checkbutton: {
@@ -101,6 +104,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
       { key: "command", label: "Command", type: "text" },
       { key: "variable", label: "Variable", type: "text" },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Radiobutton: {
@@ -116,6 +120,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
       { key: "command", label: "Command", type: "text" },
       { key: "variable", label: "Variable", type: "text" },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Listbox: {
@@ -128,6 +133,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "bg", label: "Background", type: "color" },
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled"] },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Scale: {
@@ -144,6 +150,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
       { key: "command", label: "Command", type: "text" },
       { key: "variable", label: "Variable", type: "text" },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Frame: {
@@ -176,6 +183,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "values", label: "Options (comma-sep)", type: "text" },
       { key: "bg", label: "Background", type: "color" },
       { key: "fg", label: "Foreground", type: "color" },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Spinbox: {
@@ -187,6 +195,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "to", label: "To", type: "number" },
       { key: "increment", label: "Increment", type: "number" },
       { key: "width", label: "Width (chars)", type: "number" },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Scrollbar: {
@@ -240,6 +249,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
     editableProps: [
       { key: "values", label: "Options (comma-sep)", type: "text" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "readonly"] },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Treeview: {
@@ -249,6 +259,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
     editableProps: [
       { key: "height", label: "Height (rows)", type: "number" },
       { key: "selectmode", label: "Select mode", type: "select", options: ["browse", "extended", "none"] },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Sizegrip: {
@@ -267,6 +278,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
       { key: "relief", label: "Relief", type: "select", options: ["flat", "raised", "sunken", "groove", "ridge"] },
+      { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
   Message: {
@@ -316,6 +328,12 @@ export const GENERIC_EVENTS: { event: string; label: string }[] = [
   { event: "<Leave>", label: "On Mouse Leave" },
   { event: "<Configure>", label: "On Resize" },
 ];
+
+export const INTERACTIVE_TYPES: Set<WidgetType> = new Set([
+  "Button", "Entry", "Text", "Checkbutton", "Radiobutton",
+  "Listbox", "Combobox", "Spinbox", "OptionMenu", "Scale",
+  "Treeview", "Menubutton",
+]);
 
 export function getSpec(type: WidgetType): WidgetSpec {
   return SPECS[type];

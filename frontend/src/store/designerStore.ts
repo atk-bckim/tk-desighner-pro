@@ -83,6 +83,9 @@ interface DesignerState {
 
   updateWidgetEvent: (id: string, eventName: string, code: string) => void;
   removeWidgetEvent: (id: string, eventName: string) => void;
+
+  tabOrderMode: boolean;
+  toggleTabOrderMode: () => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -574,4 +577,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       }),
     }));
   },
+
+  tabOrderMode: false,
+  toggleTabOrderMode: () => set((s) => ({ tabOrderMode: !s.tabOrderMode })),
 }));

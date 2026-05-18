@@ -5,7 +5,8 @@ import { getAbsolutePosition } from "../utils/position";
 import { ContextMenu } from "./ContextMenu";
 import { EventEditorModal } from "./EventEditorModal";
 import { Ruler } from "./Ruler";
-import { WIDGET_EVENTS } from "../utils/widgetDefaults";
+import { WIDGET_EVENTS, INTERACTIVE_TYPES } from "../utils/widgetDefaults";
+import type { WidgetType } from "../types/widgets";
 import React, { useRef, useCallback, useState, useEffect } from "react";
 
 function getReliefShadow(relief: string): React.CSSProperties {
@@ -275,6 +276,7 @@ function WidgetRenderer({
   onSetGuides,
   zoom,
   onSnapshot,
+  tabOrderMode: tabOrderModeProp,
 }: {
   widget: WidgetInstance;
   allWidgets: WidgetInstance[];
@@ -289,6 +291,7 @@ function WidgetRenderer({
   onSetGuides?: (guides: { v: number[]; h: number[] }) => void;
   zoom: number;
   onSnapshot: () => void;
+  tabOrderMode?: boolean;
 }) {
   const isContainer = widget.type === "Frame" || widget.type === "LabelFrame" || widget.type === "Notebook" || widget.type === "Toplevel";
 
@@ -492,6 +495,20 @@ function WidgetRenderer({
       {widget.events && Object.keys(widget.events).some(k => widget.events![k]?.trim()) && (
         <div className="absolute top-0.5 left-0.5 text-[8px] text-amber-400 pointer-events-none">&#9889;</div>
       )}
+      {tabOrderModeProp && INTERACTIVE_TYPES.has(widget.type as WidgetType) && (
+        <div
+          className="absolute -top-3 -left-3 min-w-5 h-5 bg-[#f59e0b] text-white text-[9px] font-bold rounded-full flex items-center justify-center z-50 cursor-pointer shadow px-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            const allInteractive = useDesignerStore.getState().widgets
+              .filter(w => INTERACTIVE_TYPES.has(w.type as WidgetType));
+            const maxIdx = allInteractive.reduce((max, w) => Math.max(max, (w.props.tabIndex as number) || 0), 0);
+            useDesignerStore.getState().updateWidgetProp(widget.id, "tabIndex", maxIdx + 1);
+          }}
+        >
+          {String(widget.props.tabIndex ?? "")}
+        </div>
+      )}
       {dragInfo && (
         <div className="absolute -top-6 left-0 bg-black/75 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap pointer-events-none z-50">
           x:{dragInfo.x} y:{dragInfo.y} | {dragInfo.w}×{dragInfo.h}
@@ -502,7 +519,7 @@ function WidgetRenderer({
 }
 
 export function Canvas() {
-  const { widgets, selectedIds, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab, zoom, snapshot, setMousePos, menuBar, rootBg } =
+  const { widgets, selectedIds, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab, zoom, snapshot, setMousePos, menuBar, rootBg, tabOrderMode } =
     useDesignerStore();
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetId: string } | null>(null);
@@ -591,6 +608,7 @@ export function Canvas() {
         onSetGuides={setGuides}
         zoom={zoom}
         onSnapshot={snapshot}
+        tabOrderMode={tabOrderMode}
       />
     );
   };
