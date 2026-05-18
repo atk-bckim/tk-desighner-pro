@@ -178,7 +178,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
 
         {/* Tabs */}
         {allEvents.length > 0 ? (
-          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-[#3c3c52] overflow-x-auto shrink-0">
+          <div className="flex items-center gap-2 px-4 py-4 border-b border-[#3c3c52] overflow-x-auto shrink-0">
             {allEvents.map((ev) => {
               const isActive = activeEvent === ev.event;
               const hasCode = !!(existingEvents[ev.event] ?? codeMap[ev.event])?.trim();
@@ -186,7 +186,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
                 <button
                   key={ev.event}
                   onClick={() => setActiveEvent(ev.event)}
-                  className={`text-xs px-4 py-2 rounded transition-colors whitespace-nowrap ${
+                  className={`text-sm px-5 py-2.5 rounded transition-colors whitespace-nowrap ${
                     isActive
                       ? "bg-[#06b6d4] text-white"
                       : "bg-transparent text-[#8888a8] hover:text-[#d4d4e8] hover:bg-[#252536]"
