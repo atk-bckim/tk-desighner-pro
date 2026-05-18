@@ -157,7 +157,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div
-        className="bg-[#1e1e2e] border border-[#3c3c52] rounded-lg shadow-xl w-[560px] max-h-[80vh] flex flex-col"
+        className="bg-[#1e1e2e] border border-[#3c3c52] rounded-lg shadow-xl w-[680px] max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -178,7 +178,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
 
         {/* Tabs */}
         {allEvents.length > 0 ? (
-          <div className="flex items-center gap-0.5 px-3 py-2 border-b border-[#3c3c52] overflow-x-auto shrink-0">
+          <div className="flex items-center gap-1 px-4 py-2 border-b border-[#3c3c52] overflow-x-auto shrink-0">
             {allEvents.map((ev) => {
               const isActive = activeEvent === ev.event;
               const hasCode = !!(existingEvents[ev.event] ?? codeMap[ev.event])?.trim();
@@ -186,7 +186,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
                 <button
                   key={ev.event}
                   onClick={() => setActiveEvent(ev.event)}
-                  className={`text-[10px] px-2.5 py-1 rounded-t transition-colors whitespace-nowrap ${
+                  className={`text-[11px] px-3 py-1.5 rounded transition-colors whitespace-nowrap ${
                     isActive
                       ? "bg-[#06b6d4] text-white"
                       : "bg-transparent text-[#8888a8] hover:text-[#d4d4e8] hover:bg-[#252536]"
@@ -263,9 +263,9 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
                 <span className="ml-1.5 font-normal normal-case text-[#5a5a72]">{activeEvent}</span>
               </p>
             </div>
-            <div className="flex flex-1 mx-4 mb-1 border border-[#3c3c52] rounded overflow-hidden min-h-[180px]">
+            <div className="flex flex-1 mx-4 mb-1 border border-[#3c3c52] rounded overflow-hidden min-h-[240px]">
               {/* Line numbers */}
-              <div className="bg-[#252536] text-[#5a5a72] text-[10px] font-mono py-2 px-2 text-right select-none overflow-hidden leading-[1.5] shrink-0">
+              <div className="bg-[#252536] text-[#5a5a72] text-[11px] font-mono py-2 px-2 text-right select-none overflow-hidden leading-[1.6] shrink-0">
                 {Array.from({ length: lineCount }, (_, i) => (
                   <div key={i}>{i + 1}</div>
                 ))}
@@ -276,7 +276,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
                 value={currentCode}
                 onChange={(e) => handleCodeChange(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="flex-1 bg-[#1e1e2e] text-[#d4d4e8] text-[11px] font-mono p-2 resize-none focus:outline-none leading-[1.5] min-h-0"
+                className="flex-1 bg-[#1e1e2e] text-[#d4d4e8] text-xs font-mono p-2 resize-none focus:outline-none leading-[1.6] min-h-0"
                 placeholder="# Python event handler code"
                 spellCheck={false}
                 autoComplete="off"

@@ -623,10 +623,6 @@ export function Canvas() {
                 </div>
               )}
               {rootWidgets.map(renderWidget)}
-              {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} widgetId={contextMenu.widgetId} onClose={() => setContextMenu(null)} />}
-              {eventEditor && (
-                <EventEditorModal widgetId={eventEditor} onClose={() => setEventEditor(null)} />
-              )}
               {selRect && (
                 <div
                   className="absolute border border-blue-400 bg-blue-400/10 pointer-events-none"
@@ -648,6 +644,10 @@ export function Canvas() {
           </div>
         </div>
       </div>
+      {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} widgetId={contextMenu.widgetId} onClose={() => setContextMenu(null)} />}
+      {eventEditor && (
+        <EventEditorModal widgetId={eventEditor} onClose={() => setEventEditor(null)} />
+      )}
     </div>
   );
 }
