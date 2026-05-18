@@ -208,7 +208,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
                   +
                 </button>
                 {showAddDropdown && (
-                  <div className="absolute left-0 top-full mt-1 bg-[#252536] border border-[#3c3c52] rounded shadow-lg z-10 min-w-[140px]">
+                  <div className="absolute left-0 top-full mt-1 bg-[#252536] border border-[#3c3c52] rounded shadow-lg z-[100] min-w-[160px]">
                     {addableGenericEvents.map((ge) => (
                       <button
                         key={ge.event}
@@ -236,7 +236,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
                   + Add Event
                 </button>
                 {showAddDropdown && (
-                  <div className="absolute right-0 top-full mt-1 bg-[#252536] border border-[#3c3c52] rounded shadow-lg z-10 min-w-[140px]">
+                  <div className="absolute right-0 top-full mt-1 bg-[#252536] border border-[#3c3c52] rounded shadow-lg z-[100] min-w-[160px]">
                     {addableGenericEvents.map((ge) => (
                       <button
                         key={ge.event}

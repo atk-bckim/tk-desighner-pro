@@ -41,6 +41,27 @@ function getWidgetDynamicStyle(widget: WidgetInstance): React.CSSProperties {
     style.wordWrap = "break-word";
   }
 
+  // anchor → CSS textAlign + justifyContent
+  if (typeof props.anchor === "string") {
+    const a = props.anchor as string;
+    if (a.includes("w")) style.textAlign = "left";
+    else if (a.includes("e")) style.textAlign = "right";
+    else if (a.includes("center")) style.textAlign = "center";
+    // vertical alignment
+    const isTop = a.includes("n");
+    const isBottom = a.includes("s");
+    if (!isTop && !isBottom) style.justifyContent = "center";
+    else if (isTop) style.justifyContent = "flex-start";
+    else style.justifyContent = "flex-end";
+  }
+
+  // justify → CSS textAlign
+  if (typeof props.justify === "string") {
+    if (props.justify === "left") style.textAlign = "left";
+    else if (props.justify === "center") style.textAlign = "center";
+    else if (props.justify === "right") style.textAlign = "right";
+  }
+
   return style;
 }
 

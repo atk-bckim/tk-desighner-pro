@@ -15,6 +15,12 @@ interface WidgetSpec {
   editableProps: PropSpec[];
 }
 
+const TTK_WIDGETS: Set<WidgetType> = new Set(["Notebook", "Progressbar", "Combobox", "Treeview", "Sizegrip"]);
+
+export function isTtk(type: WidgetType): boolean {
+  return TTK_WIDGETS.has(type);
+}
+
 const widgetCounters: Record<string, number> = {};
 
 const SPECS: Record<WidgetType, WidgetSpec> = {
@@ -30,6 +36,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "relief", label: "Relief", type: "select", options: ["flat", "raised", "sunken", "groove", "ridge"] },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
       { key: "bd", label: "Border width", type: "number" },
+      { key: "command", label: "Command", type: "text" },
     ],
   },
   Label: {
@@ -57,6 +64,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "bg", label: "Background", type: "color" },
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "readonly"] },
+      { key: "textvariable", label: "Text variable", type: "text" },
     ],
   },
   Text: {
@@ -69,6 +77,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "bg", label: "Background", type: "color" },
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled"] },
+      { key: "textvariable", label: "Text variable", type: "text" },
     ],
   },
   Checkbutton: {
@@ -81,6 +90,8 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
       { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
+      { key: "command", label: "Command", type: "text" },
+      { key: "variable", label: "Variable", type: "text" },
     ],
   },
   Radiobutton: {
@@ -94,6 +105,8 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
       { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
+      { key: "command", label: "Command", type: "text" },
+      { key: "variable", label: "Variable", type: "text" },
     ],
   },
   Listbox: {
@@ -120,6 +133,8 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "bg", label: "Background", type: "color" },
       { key: "fg", label: "Foreground", type: "color" },
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
+      { key: "command", label: "Command", type: "text" },
+      { key: "variable", label: "Variable", type: "text" },
     ],
   },
   Frame: {
@@ -187,7 +202,111 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
     defaultProps: { activeTab: 0 },
     editableProps: [],
   },
+  Toplevel: {
+    defaultWidth: 350,
+    defaultHeight: 250,
+    defaultProps: { title: "Toplevel", bg: "#f0f0f0" },
+    editableProps: [
+      { key: "title", label: "Title", type: "text" },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "relief", label: "Relief", type: "select", options: ["flat", "raised", "sunken", "groove", "ridge"] },
+      { key: "bd", label: "Border width", type: "number" },
+    ],
+  },
+  Progressbar: {
+    defaultWidth: 200,
+    defaultHeight: 20,
+    defaultProps: { orient: "horizontal", mode: "determinate", maximum: 100 },
+    editableProps: [
+      { key: "orient", label: "Orientation", type: "select", options: ["horizontal", "vertical"] },
+      { key: "length", label: "Length (px)", type: "number" },
+      { key: "mode", label: "Mode", type: "select", options: ["determinate", "indeterminate"] },
+      { key: "maximum", label: "Maximum", type: "number" },
+    ],
+  },
+  Combobox: {
+    defaultWidth: 200,
+    defaultHeight: 30,
+    defaultProps: { values: "Option1,Option2,Option3" },
+    editableProps: [
+      { key: "values", label: "Options (comma-sep)", type: "text" },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled", "readonly"] },
+    ],
+  },
+  Treeview: {
+    defaultWidth: 300,
+    defaultHeight: 200,
+    defaultProps: { height: 10, selectmode: "extended" },
+    editableProps: [
+      { key: "height", label: "Height (rows)", type: "number" },
+      { key: "selectmode", label: "Select mode", type: "select", options: ["browse", "extended", "none"] },
+    ],
+  },
+  Sizegrip: {
+    defaultWidth: 16,
+    defaultHeight: 16,
+    defaultProps: {},
+    editableProps: [],
+  },
+  Menubutton: {
+    defaultWidth: 120,
+    defaultHeight: 30,
+    defaultProps: { text: "Menu" },
+    editableProps: [
+      { key: "text", label: "Text", type: "text" },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "fg", label: "Foreground", type: "color" },
+      { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
+      { key: "relief", label: "Relief", type: "select", options: ["flat", "raised", "sunken", "groove", "ridge"] },
+    ],
+  },
+  Message: {
+    defaultWidth: 200,
+    defaultHeight: 60,
+    defaultProps: { text: "Message text" },
+    editableProps: [
+      { key: "text", label: "Text", type: "text" },
+      { key: "bg", label: "Background", type: "color" },
+      { key: "fg", label: "Foreground", type: "color" },
+      { key: "font", label: "Font", type: "text" },
+      { key: "width", label: "Width (chars)", type: "number" },
+      { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
+      { key: "anchor", label: "Anchor", type: "select", options: ["nw", "n", "ne", "w", "center", "e", "sw", "s", "se"] },
+    ],
+  },
 };
+
+export const WIDGET_EVENTS: Record<string, { event: string; label: string }[]> = {
+  Button:        [{ event: "command", label: "On Click" }],
+  Checkbutton:   [{ event: "command", label: "On Toggle" }],
+  Radiobutton:   [{ event: "command", label: "On Select" }],
+  Scale:         [{ event: "command", label: "On Value Change" }],
+  Entry:         [{ event: "<Return>", label: "On Enter Key" }, { event: "<FocusOut>", label: "On Focus Lost" }, { event: "<KeyRelease>", label: "On Key Up" }],
+  Text:          [{ event: "<KeyRelease>", label: "On Key Up" }, { event: "<FocusOut>", label: "On Focus Lost" }],
+  Listbox:       [{ event: "<<ListboxSelect>>", label: "On Select" }, { event: "<<ListboxSelect>>", label: "On Double Click" }],
+  Combobox:      [{ event: "<<ComboboxSelected>>", label: "On Select" }],
+  Treeview:      [{ event: "<<TreeviewSelect>>", label: "On Select" }, { event: "<<TreeviewOpen>>", label: "On Expand" }, { event: "<<TreeviewClose>>", label: "On Collapse" }],
+  Spinbox:       [{ event: "command", label: "On Value Change" }, { event: "<Return>", label: "On Enter Key" }],
+  Menubutton:    [{ event: "command", label: "On Click" }],
+  OptionMenu:    [{ event: "<<OptionMenuSelect>>", label: "On Select" }],
+  Label:         [{ event: "<Button-1>", label: "On Click" }],
+  Frame:         [],
+  LabelFrame:    [],
+  Notebook:      [{ event: "<<NotebookTabChanged>>", label: "On Tab Change" }],
+  Toplevel:      [{ event: "<Configure>", label: "On Resize" }],
+  Scrollbar:     [],
+  Separator:     [],
+  Progressbar:   [],
+  Sizegrip:      [],
+  Message:       [],
+};
+
+export const GENERIC_EVENTS: { event: string; label: string }[] = [
+  { event: "<Button-1>", label: "On Left Click" },
+  { event: "<Enter>", label: "On Mouse Enter" },
+  { event: "<Leave>", label: "On Mouse Leave" },
+  { event: "<Configure>", label: "On Resize" },
+];
 
 export function getSpec(type: WidgetType): WidgetSpec {
   return SPECS[type];
@@ -228,5 +347,6 @@ export function createWidget(
     height: spec.defaultHeight,
     props: { ...spec.defaultProps },
     locked: false,
+    bindings: {},
   };
 }
