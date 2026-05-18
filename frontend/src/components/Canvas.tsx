@@ -104,20 +104,46 @@ function computeGuides(
   return { v: [...new Set(v)], h: [...new Set(h)] };
 }
 
+function getAnchorJustifyStyle(widget: WidgetInstance): React.CSSProperties {
+  const style: React.CSSProperties = {};
+  const anchor = typeof widget.props.anchor === "string" ? widget.props.anchor : "";
+  const justify = typeof widget.props.justify === "string" ? widget.props.justify : "";
+
+  if (anchor) {
+    const isLeft = anchor.includes("w");
+    const isRight = anchor.includes("e");
+    const isTop = anchor.includes("n");
+    const isBottom = anchor.includes("s");
+    const isCenterH = anchor.includes("center") || (!isLeft && !isRight);
+    const isCenterV = !isTop && !isBottom;
+
+    style.display = "flex";
+    style.alignItems = isCenterV ? "center" : isTop ? "flex-start" : "flex-end";
+    style.justifyContent = isCenterH ? "center" : isLeft ? "flex-start" : "flex-end";
+  }
+
+  if (justify) {
+    style.textAlign = justify as React.CSSProperties["textAlign"];
+  }
+
+  return style;
+}
+
 function renderWidgetContent(widget: WidgetInstance) {
   const text = String(widget.props.text ?? "");
   const fgColor = typeof widget.props.fg === "string" ? widget.props.fg : undefined;
   const textColor = fgColor ? { color: fgColor } : undefined;
+  const anchorStyle = getAnchorJustifyStyle(widget);
 
   switch (widget.type) {
     case "Button":
       return (
-        <div className="w-full h-full flex items-center justify-center" style={{ boxShadow: "inset 1px 1px 0 #fff, inset -1px -1px 0 #888" }}>
+        <div className="w-full h-full flex items-center justify-center" style={{ ...anchorStyle, boxShadow: "inset 1px 1px 0 #fff, inset -1px -1px 0 #888" }}>
           <span className="text-xs font-medium truncate px-2" style={textColor}>{text || "Button"}</span>
         </div>
       );
     case "Label":
-      return <span className="text-xs truncate px-1" style={textColor}>{text || "Label"}</span>;
+      return <span className="text-xs truncate px-1 w-full h-full" style={{ ...textColor, ...anchorStyle }}>{text || "Label"}</span>;
     case "Entry":
       return (
         <div className="w-full h-full relative">
@@ -128,7 +154,7 @@ function renderWidgetContent(widget: WidgetInstance) {
     case "Text":
       return (
         <div className="absolute inset-0 bg-white overflow-hidden" style={{ boxShadow: "inset 1px 1px 2px rgba(0,0,0,0.3)" }}>
-          <div className="absolute inset-1 text-xs" style={textColor || { color: "#9ca3af" }}>Text</div>
+          <div className="absolute inset-1 text-xs" style={{ ...textColor, ...anchorStyle, color: textColor?.color ?? "#9ca3af" }}>Text</div>
           <div className="absolute right-0 top-0 bottom-0 w-3 bg-gray-100 border-l border-gray-300 flex flex-col items-center py-0.5 gap-px">
             <div className="w-1.5 h-2 bg-gray-300 rounded-sm" />
             <div className="flex-1 w-1.5 bg-gray-200 rounded" />
@@ -138,14 +164,14 @@ function renderWidgetContent(widget: WidgetInstance) {
       );
     case "Checkbutton":
       return (
-        <div className="flex items-center gap-1.5 px-1">
+        <div className="w-full h-full flex items-center gap-1.5 px-1" style={anchorStyle}>
           <div className="w-3.5 h-3.5 border-2 border-gray-400 rounded-sm shrink-0" />
           <span className="text-xs truncate" style={textColor}>{text || "Check"}</span>
         </div>
       );
     case "Radiobutton":
       return (
-        <div className="flex items-center gap-1.5 px-1">
+        <div className="w-full h-full flex items-center gap-1.5 px-1" style={anchorStyle}>
           <div className="w-3.5 h-3.5 border-2 border-gray-400 rounded-full shrink-0" />
           <span className="text-xs truncate" style={textColor}>{text || "Radio"}</span>
         </div>
@@ -215,7 +241,7 @@ function renderWidgetContent(widget: WidgetInstance) {
         </div>
       );
     case "Message":
-      return <div className="absolute inset-1 text-xs overflow-hidden" style={textColor || { color: "#9ca3af" }}>{text || "Message"}</div>;
+      return <div className="absolute inset-1 text-xs overflow-hidden" style={{ ...textColor, ...anchorStyle, color: textColor?.color ?? "#9ca3af" }}>{text || "Message"}</div>;
     case "Frame":
     case "LabelFrame":
     case "Toplevel":

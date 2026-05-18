@@ -178,7 +178,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
 
         {/* Tabs */}
         {allEvents.length > 0 ? (
-          <div className="flex items-center gap-2 px-4 py-4 border-b border-[#3c3c52] overflow-x-auto shrink-0">
+          <div className="flex items-center gap-2 px-4 py-4 border-b border-[#3c3c52] shrink-0 relative overflow-visible">
             {allEvents.map((ev) => {
               const isActive = activeEvent === ev.event;
               const hasCode = !!(existingEvents[ev.event] ?? codeMap[ev.event])?.trim();
