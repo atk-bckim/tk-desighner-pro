@@ -39,6 +39,14 @@ export interface WidgetInstance {
     command?: string;
   };
   events?: Record<string, string>;
+  layoutManager?: "place" | "grid";
+  gridRow?: number;
+  gridCol?: number;
+  gridRowSpan?: number;
+  gridColSpan?: number;
+  gridSticky?: string;
+  gridPadX?: number;
+  gridPadY?: number;
 }
 
 export type TkVarType = "StringVar" | "IntVar" | "DoubleVar" | "BooleanVar";

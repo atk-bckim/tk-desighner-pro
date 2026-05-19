@@ -9,7 +9,7 @@ export function PropertyPanel() {
   const selectedIds = useDesignerStore((s) => s.selectedIds);
   const widgets = useDesignerStore((s) => s.widgets);
   const menuBar = useDesignerStore((s) => s.menuBar);
-  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets, tkTheme, setTkTheme, distributeWidgets, makeSameSize, addMenuBar, removeMenuBar, addMenu, removeMenu, renameMenu, addMenuItem, removeMenuItem, updateMenuItem, rootBg, setRootBg, rootResizable, setRootResizable, variables } =
+  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets, tkTheme, setTkTheme, distributeWidgets, makeSameSize, addMenuBar, removeMenuBar, addMenu, removeMenu, renameMenu, addMenuItem, removeMenuItem, updateMenuItem, rootBg, setRootBg, rootResizable, setRootResizable, variables, setLayoutManager, updateGridLayout } =
     useDesignerStore();
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
@@ -192,20 +192,122 @@ export function PropertyPanel() {
       </div>
 
       <div className={sectionCls}>
-        <div className={sectionTitleCls}>Geometry</div>
-        <div className="grid grid-cols-2 gap-1">
-          {(["x", "y", "width", "height"] as const).map((key) => (
-            <label key={key}>
-              <span className={labelCls}>{key}</span>
-              <input type="number" className={inputCls} value={widget[key]} onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                if (isNaN(val)) return;
-                if (key === "x" || key === "y") moveWidget(widget.id, key === "x" ? val : widget.x, key === "y" ? val : widget.y);
-                else resizeWidget(widget.id, key === "width" ? val : widget.width, key === "height" ? val : widget.height);
-              }} onBlur={() => snapshot()} />
-            </label>
-          ))}
+        <div className={sectionTitleCls}>Layout</div>
+        <div className="flex gap-1 mb-1.5">
+          <button
+            onClick={() => { snapshot(); setLayoutManager(widget.id, "place"); }}
+            className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+              (widget.layoutManager ?? "place") === "place"
+                ? "bg-[#06b6d4]/20 text-[#06b6d4] border border-[#06b6d4]/40"
+                : "bg-[#252536] border border-[#3c3c52] text-[#8888a8] hover:border-[#06b6d4]/30"
+            }`}
+          >place</button>
+          <button
+            onClick={() => { snapshot(); setLayoutManager(widget.id, "grid"); }}
+            className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+              widget.layoutManager === "grid"
+                ? "bg-[#06b6d4]/20 text-[#06b6d4] border border-[#06b6d4]/40"
+                : "bg-[#252536] border border-[#3c3c52] text-[#8888a8] hover:border-[#06b6d4]/30"
+            }`}
+          >grid</button>
         </div>
+        {(widget.layoutManager ?? "place") === "place" ? (
+          <div className="grid grid-cols-2 gap-1">
+            {(["x", "y", "width", "height"] as const).map((key) => (
+              <label key={key}>
+                <span className={labelCls}>{key}</span>
+                <input type="number" className={inputCls} value={widget[key]} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (isNaN(val)) return;
+                  if (key === "x" || key === "y") moveWidget(widget.id, key === "x" ? val : widget.x, key === "y" ? val : widget.y);
+                  else resizeWidget(widget.id, key === "width" ? val : widget.width, key === "height" ? val : widget.height);
+                }} onBlur={() => snapshot()} />
+              </label>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-2 gap-1">
+              <label>
+                <span className={labelCls}>Row</span>
+                <input type="number" className={inputCls} min={1} value={widget.gridRow ?? 1} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1) updateGridLayout(widget.id, { gridRow: val });
+                }} onBlur={() => snapshot()} />
+              </label>
+              <label>
+                <span className={labelCls}>Column</span>
+                <input type="number" className={inputCls} min={1} value={widget.gridCol ?? 1} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1) updateGridLayout(widget.id, { gridCol: val });
+                }} onBlur={() => snapshot()} />
+              </label>
+              <label>
+                <span className={labelCls}>Row Span</span>
+                <input type="number" className={inputCls} min={1} value={widget.gridRowSpan ?? 1} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1) updateGridLayout(widget.id, { gridRowSpan: val });
+                }} onBlur={() => snapshot()} />
+              </label>
+              <label>
+                <span className={labelCls}>Col Span</span>
+                <input type="number" className={inputCls} min={1} value={widget.gridColSpan ?? 1} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 1) updateGridLayout(widget.id, { gridColSpan: val });
+                }} onBlur={() => snapshot()} />
+              </label>
+            </div>
+            <label>
+              <span className={labelCls}>Sticky</span>
+              <select className={inputCls} value={widget.gridSticky ?? ""} onChange={(e) => {
+                snapshot();
+                updateGridLayout(widget.id, { gridSticky: e.target.value || undefined });
+              }}>
+                <option value="">(none)</option>
+                <option value="n">n</option>
+                <option value="s">s</option>
+                <option value="e">e</option>
+                <option value="w">w</option>
+                <option value="ns">ns</option>
+                <option value="ew">ew</option>
+                <option value="nsew">nsew</option>
+                <option value="news">news</option>
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-1">
+              <label>
+                <span className={labelCls}>Pad X</span>
+                <input type="number" className={inputCls} min={0} value={widget.gridPadX ?? 0} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 0) updateGridLayout(widget.id, { gridPadX: val });
+                }} onBlur={() => snapshot()} />
+              </label>
+              <label>
+                <span className={labelCls}>Pad Y</span>
+                <input type="number" className={inputCls} min={0} value={widget.gridPadY ?? 0} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val >= 0) updateGridLayout(widget.id, { gridPadY: val });
+                }} onBlur={() => snapshot()} />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-1">
+              <label>
+                <span className={labelCls}>Width</span>
+                <input type="number" className={inputCls} value={widget.width} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val)) resizeWidget(widget.id, val, widget.height);
+                }} onBlur={() => snapshot()} />
+              </label>
+              <label>
+                <span className={labelCls}>Height</span>
+                <input type="number" className={inputCls} value={widget.height} onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val)) resizeWidget(widget.id, widget.width, val);
+                }} onBlur={() => snapshot()} />
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {editableProps.length > 0 && (

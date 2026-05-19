@@ -277,6 +277,7 @@ function WidgetRenderer({
   zoom,
   onSnapshot,
   tabOrderMode: tabOrderModeProp,
+  isInGrid,
 }: {
   widget: WidgetInstance;
   allWidgets: WidgetInstance[];
@@ -292,6 +293,7 @@ function WidgetRenderer({
   zoom: number;
   onSnapshot: () => void;
   tabOrderMode?: boolean;
+  isInGrid?: boolean;
 }) {
   const isContainer = widget.type === "Frame" || widget.type === "LabelFrame" || widget.type === "Notebook" || widget.type === "Toplevel";
 
@@ -425,6 +427,29 @@ function WidgetRenderer({
     const containerBd = typeof widget.props.bd === "number" ? widget.props.bd : 1;
     const hasReliefStyle = containerRelief && containerRelief !== "flat";
 
+    // Separate grid children from place children
+    const allChildren = allWidgets.filter(c => c.parentId === widget.id);
+    const gridChildren = allChildren.filter(c => c.layoutManager === "grid");
+    const placeChildren = allChildren.filter(c => c.layoutManager !== "grid");
+
+    // Compute CSS Grid style for grid-layout children
+    let gridContainerStyle: React.CSSProperties = {};
+    if (gridChildren.length > 0) {
+      const maxRow = Math.max(...gridChildren.map(c => (c.gridRow ?? 1) + (c.gridRowSpan ?? 1) - 1));
+      const maxCol = Math.max(...gridChildren.map(c => (c.gridCol ?? 1) + (c.gridColSpan ?? 1) - 1));
+      gridContainerStyle = {
+        display: "grid",
+        gridTemplateRows: `repeat(${maxRow}, 1fr)`,
+        gridTemplateColumns: `repeat(${maxCol}, 1fr)`,
+        width: "100%",
+        height: "100%",
+      };
+    }
+
+    const contentDiv = widget.type === "Toplevel"
+      ? "w-full h-full pt-6"
+      : "w-full h-full";
+
     return (
       <div className="relative w-full h-full">
         {widget.type === "Toplevel" && (
@@ -448,22 +473,43 @@ function WidgetRenderer({
         {widget.type === "Frame" && (widget.props.bg || hasReliefStyle) && (
           <div className="absolute inset-0 rounded pointer-events-none" style={{ borderWidth: containerBd, borderColor: "#888", borderStyle: "solid", ...getReliefShadow(containerRelief) }} />
         )}
-        <div className={widget.type === "Toplevel" ? "w-full h-full pt-6" : "w-full h-full"}>
-          {allWidgets.filter(c => c.parentId === widget.id).map(child => renderChild(child))}
+        <div className={contentDiv} style={gridChildren.length > 0 ? { position: "relative" } : undefined}>
+          {/* Grid children rendered in a CSS Grid container */}
+          {gridChildren.length > 0 && (
+            <div className="absolute inset-0" style={gridContainerStyle}>
+              {gridChildren.map(child => (
+                <div
+                  key={child.id}
+                  style={{
+                    gridRow: `${child.gridRow ?? 1} / span ${child.gridRowSpan ?? 1}`,
+                    gridColumn: `${child.gridCol ?? 1} / span ${child.gridColSpan ?? 1}`,
+                    position: "relative",
+                  }}
+                >
+                  {renderChild(child)}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Place children rendered with absolute positioning */}
+          {placeChildren.map(child => renderChild(child))}
         </div>
       </div>
     );
   };
 
+  // Determine positioning: grid children use relative, others use absolute
+  const isGridChild = isInGrid ?? false;
+
   return (
     <div
       ref={isContainer ? setFrameRef : undefined}
-      className={`absolute border border-gray-300 rounded flex items-center justify-center cursor-move select-none ${
-        isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent" : ""
+      className={`border border-gray-300 rounded flex items-center justify-center cursor-move select-none ${
+        isGridChild ? "" : "absolute"
+      } ${isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent" : ""
       } ${isContainer && isFrameOver ? "ring-2 ring-green-400" : ""}`}
       style={{
-        left: widget.x,
-        top: widget.y,
+        ...(isGridChild ? {} : { left: widget.x, top: widget.y }),
         width: widget.width,
         height: widget.height,
         ...dynamicStyle,
@@ -581,7 +627,7 @@ export function Canvas() {
     backgroundSize: `${gridSize}px ${gridSize}px`,
   } : {};
 
-  const renderWidget = (w: WidgetInstance): React.ReactNode => {
+  const renderWidget = (w: WidgetInstance, isInGrid = false): React.ReactNode => {
     return (
       <WidgetRenderer
         key={w.id}
@@ -591,7 +637,7 @@ export function Canvas() {
         onSelect={(multi) => selectWidget(w.id, multi)}
         onMove={(id, x, y) => moveWidget(id, snapFn(x), snapFn(y))}
         onResize={(id, w, h) => resizeWidget(id, Math.max(20, snapFn(w)), Math.max(20, snapFn(h)))}
-        renderChild={renderWidget}
+        renderChild={(child) => renderWidget(child, child.layoutManager === "grid")}
         setActiveTab={setActiveTab}
         onContextMenu={(e, widgetId) => {
           setContextMenu({ x: e.clientX, y: e.clientY, widgetId });
@@ -609,6 +655,7 @@ export function Canvas() {
         zoom={zoom}
         onSnapshot={snapshot}
         tabOrderMode={tabOrderMode}
+        isInGrid={isInGrid}
       />
     );
   };

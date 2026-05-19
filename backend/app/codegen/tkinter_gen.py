@@ -34,6 +34,29 @@ def _filter_props(props: dict) -> list[str]:
     return parts
 
 
+def _layout_call(var_name: str, w, indent: str = "    ") -> str:
+    """Generate .place() or .grid() call based on layout_manager."""
+    if w.layout_manager == "grid":
+        parts = [f"row={w.grid_row or 0}", f"column={w.grid_col or 0}"]
+        if w.grid_row_span and w.grid_row_span > 1:
+            parts.append(f"rowspan={w.grid_row_span}")
+        if w.grid_col_span and w.grid_col_span > 1:
+            parts.append(f"columnspan={w.grid_col_span}")
+        if w.grid_sticky:
+            parts.append(f'sticky="{_escape(w.grid_sticky)}"')
+        if w.grid_pad_x and w.grid_pad_x > 0:
+            parts.append(f"padx={w.grid_pad_x}")
+        if w.grid_pad_y and w.grid_pad_y > 0:
+            parts.append(f"pady={w.grid_pad_y}")
+        return f"{indent}{var_name}.grid({', '.join(parts)})"
+    else:
+        return (
+            f"{indent}{var_name}.place("
+            f"x={round(w.x)}, y={round(w.y)}, "
+            f"width={round(w.width)}, height={round(w.height)})"
+        )
+
+
 def generate_tkinter_code(project: Project) -> str:
     lines = [
         "import tkinter as tk",
@@ -97,11 +120,7 @@ def generate_tkinter_code(project: Project) -> str:
         # Special handling for Notebook
         if w.type == "Notebook":
             lines.append(f"{indent}{var_name} = ttk.Notebook({parent_var})")
-            lines.append(
-                f"{indent}{var_name}.place("
-                f"x={round(w.x)}, y={round(w.y)}, "
-                f"width={round(w.width)}, height={round(w.height)})"
-            )
+            lines.append(_layout_call(var_name, w, indent))
             lines.append("")
             for tab in children_map.get(w.id, []):
                 tab_var = name_map.get(tab.id, f"frame_{tab.id[:8]}")
@@ -122,11 +141,7 @@ def generate_tkinter_code(project: Project) -> str:
             lines.append(f"{indent}{var_name} = tk.Toplevel({parent_var}{props_str})")
             if title:
                 lines.append(f'{indent}{var_name}.title("{_escape(title)}")')
-            lines.append(
-                f"{indent}{var_name}.place("
-                f"x={round(w.x)}, y={round(w.y)}, "
-                f"width={round(w.width)}, height={round(w.height)})"
-            )
+            lines.append(_layout_call(var_name, w, indent))
             lines.append("")
             for child in children_map.get(w.id, []):
                 render_widget(child, var_name, indent)
@@ -140,11 +155,7 @@ def generate_tkinter_code(project: Project) -> str:
             values_py = ", ".join(f'"{_escape(v)}"' for v in values) if values else '""'
             lines.append(f"{indent}{var_name}_var = tk.StringVar(value=\"{default_val}\")")
             lines.append(f"{indent}{var_name} = tk.OptionMenu({parent_var}, {var_name}_var, {values_py})")
-            lines.append(
-                f"{indent}{var_name}.place("
-                f"x={round(w.x)}, y={round(w.y)}, "
-                f"width={round(w.width)}, height={round(w.height)})"
-            )
+            lines.append(_layout_call(var_name, w, indent))
             lines.append("")
             for child in children_map.get(w.id, []):
                 render_widget(child, var_name, indent)
@@ -154,11 +165,7 @@ def generate_tkinter_code(project: Project) -> str:
         props_str = ", " + ", ".join(props_parts) if props_parts else ""
         module = "ttk" if w.type in _TTK_TYPES else "tk"
         lines.append(f"{indent}{var_name} = {module}.{w.type}({parent_var}{props_str})")
-        lines.append(
-            f"{indent}{var_name}.place("
-            f"x={round(w.x)}, y={round(w.y)}, "
-            f"width={round(w.width)}, height={round(w.height)})"
-        )
+        lines.append(_layout_call(var_name, w, indent))
         lines.append("")
         for child in children_map.get(w.id, []):
             render_widget(child, var_name, indent)

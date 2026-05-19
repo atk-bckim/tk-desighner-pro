@@ -28,6 +28,14 @@ class WidgetInstance(BaseModel):
     props: dict[str, object] = {}
     bindings: WidgetBindings | None = None
     events: dict[str, str] = {}
+    layout_manager: str = "place"
+    grid_row: int | None = None
+    grid_col: int | None = None
+    grid_row_span: int | None = None
+    grid_col_span: int | None = None
+    grid_sticky: str | None = None
+    grid_pad_x: int | None = None
+    grid_pad_y: int | None = None
 
 
 class MenuItemData(BaseModel):

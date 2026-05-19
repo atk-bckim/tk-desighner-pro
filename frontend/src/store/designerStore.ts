@@ -84,6 +84,9 @@ interface DesignerState {
   updateWidgetEvent: (id: string, eventName: string, code: string) => void;
   removeWidgetEvent: (id: string, eventName: string) => void;
 
+  setLayoutManager: (id: string, manager: "place" | "grid") => void;
+  updateGridLayout: (id: string, grid: Partial<Pick<WidgetInstance, "gridRow" | "gridCol" | "gridRowSpan" | "gridColSpan" | "gridSticky" | "gridPadX" | "gridPadY">>) => void;
+
   tabOrderMode: boolean;
   toggleTabOrderMode: () => void;
 
@@ -583,6 +586,18 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
         delete events[eventName];
         return { ...w, events };
       }),
+    }));
+  },
+
+  setLayoutManager: (id, manager) => {
+    set((s) => ({
+      widgets: s.widgets.map(w => w.id === id ? { ...w, layoutManager: manager } : w),
+    }));
+  },
+
+  updateGridLayout: (id, grid) => {
+    set((s) => ({
+      widgets: s.widgets.map(w => w.id === id ? { ...w, ...grid } : w),
     }));
   },
 

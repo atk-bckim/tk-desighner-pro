@@ -93,10 +93,24 @@ function generateCode(
   const renderWidget = (w: typeof widgets[0], parentVar: string, indent: string) => {
     const varName = w.name || `${w.type.toLowerCase()}_${w.id.slice(0, 8)}`;
 
+    // Helper to generate layout call
+    const layoutCall = () => {
+      if (w.layoutManager === "grid") {
+        const parts: string[] = [`row=${w.gridRow ?? 0}`, `column=${w.gridCol ?? 0}`];
+        if (w.gridRowSpan && w.gridRowSpan > 1) parts.push(`rowspan=${w.gridRowSpan}`);
+        if (w.gridColSpan && w.gridColSpan > 1) parts.push(`columnspan=${w.gridColSpan}`);
+        if (w.gridSticky) parts.push(`sticky="${escapePy(w.gridSticky)}"`);
+        if (w.gridPadX && w.gridPadX > 0) parts.push(`padx=${w.gridPadX}`);
+        if (w.gridPadY && w.gridPadY > 0) parts.push(`pady=${w.gridPadY}`);
+        return `${indent}${varName}.grid(${parts.join(", ")})`;
+      }
+      return `${indent}${varName}.place(x=${Math.round(w.x)}, y=${Math.round(w.y)}, width=${Math.round(w.width)}, height=${Math.round(w.height)})`;
+    };
+
     // Notebook
     if (w.type === "Notebook") {
       lines.push(`${indent}${varName} = ttk.Notebook(${parentVar})`);
-      lines.push(`${indent}${varName}.place(x=${Math.round(w.x)}, y=${Math.round(w.y)}, width=${Math.round(w.width)}, height=${Math.round(w.height)})`);
+      lines.push(layoutCall());
       lines.push("");
       const tabs = childrenMap.get(w.id) || [];
       for (const tab of tabs) {
@@ -118,7 +132,7 @@ function generateCode(
       const propsStr = renderProps(w, new Set(["title"]));
       lines.push(`${indent}${varName} = tk.Toplevel(${parentVar}${propsStr})`);
       if (title) lines.push(`${indent}${varName}.title("${escapePy(title)}")`);
-      lines.push(`${indent}${varName}.place(x=${Math.round(w.x)}, y=${Math.round(w.y)}, width=${Math.round(w.width)}, height=${Math.round(w.height)})`);
+      lines.push(layoutCall());
       lines.push("");
       const children = childrenMap.get(w.id) || [];
       for (const child of children) {
@@ -135,7 +149,7 @@ function generateCode(
       const valuesPy = values.map(v => `"${escapePy(v)}"`).join(", ") || '""';
       lines.push(`${indent}${varName}_var = tk.StringVar(value="${escapePy(defaultVal)}")`);
       lines.push(`${indent}${varName} = tk.OptionMenu(${parentVar}, ${varName}_var, ${valuesPy})`);
-      lines.push(`${indent}${varName}.place(x=${Math.round(w.x)}, y=${Math.round(w.y)}, width=${Math.round(w.width)}, height=${Math.round(w.height)})`);
+      lines.push(layoutCall());
       lines.push("");
       const optChildren = childrenMap.get(w.id) || [];
       for (const child of optChildren) {
@@ -148,7 +162,7 @@ function generateCode(
     const propsStr = renderProps(w);
     const module = TTK_TYPES.has(w.type) ? "ttk" : "tk";
     lines.push(`${indent}${varName} = ${module}.${w.type}(${parentVar}${propsStr})`);
-    lines.push(`${indent}${varName}.place(x=${Math.round(w.x)}, y=${Math.round(w.y)}, width=${Math.round(w.width)}, height=${Math.round(w.height)})`);
+    lines.push(layoutCall());
     lines.push("");
     const children = childrenMap.get(w.id) || [];
     for (const child of children) {
@@ -215,6 +229,14 @@ export function CodePreview() {
             id: w.id, type: w.type, name: w.name, parent_id: w.parentId,
             x: w.x, y: w.y, width: w.width, height: w.height, props: w.props,
             bindings: w.bindings || {}, events: w.events || {},
+            layout_manager: w.layoutManager ?? "place",
+            grid_row: w.gridRow ?? null,
+            grid_col: w.gridCol ?? null,
+            grid_row_span: w.gridRowSpan ?? null,
+            grid_col_span: w.gridColSpan ?? null,
+            grid_sticky: w.gridSticky ?? null,
+            grid_pad_x: w.gridPadX ?? null,
+            grid_pad_y: w.gridPadY ?? null,
           })),
           menu_bar: store.menuBar,
           variables: store.variables,
