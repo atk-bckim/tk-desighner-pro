@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useDesignerStore } from "../store/designerStore";
 import { WIDGET_EVENTS, GENERIC_EVENTS } from "../utils/widgetDefaults";
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine, drawSelection, rectangularSelection, crosshairCursor, highlightSpecialChars } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { python } from "@codemirror/lang-python";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { syntaxHighlighting, defaultHighlightStyle, foldGutter, indentOnInput, bracketMatching, foldKeymap } from "@codemirror/language";
 
 interface EventEditorModalProps {
   widgetId: string;
@@ -54,7 +60,8 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     return map;
   });
   const [showAddDropdown, setShowAddDropdown] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -68,6 +75,46 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showAddDropdown]);
+
+  // CodeMirror editor
+  useEffect(() => {
+    if (!editorContainerRef.current || !activeEvent) return;
+    editorViewRef.current?.destroy();
+
+    const state = EditorState.create({
+      doc: currentCode,
+      extensions: [
+        lineNumbers(),
+        highlightActiveLineGutter(),
+        highlightSpecialChars(),
+        history(),
+        foldGutter(),
+        drawSelection(),
+        EditorState.allowMultipleSelections.of(true),
+        indentOnInput(),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        bracketMatching(),
+        rectangularSelection(),
+        crosshairCursor(),
+        highlightActiveLine(),
+        keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),
+        python(),
+        oneDark,
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            handleCodeChange(update.state.doc.toString());
+          }
+        }),
+        EditorView.theme({
+          "&": { fontSize: "12px", height: "100%" },
+          ".cm-scroller": { overflow: "auto" },
+          ".cm-content": { padding: "4px 0" },
+        }),
+      ],
+    });
+    editorViewRef.current = new EditorView({ state, parent: editorContainerRef.current });
+    return () => { editorViewRef.current?.destroy(); editorViewRef.current = null; };
+  }, [activeEvent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Escape key to close modal
   useEffect(() => {
@@ -120,39 +167,9 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     []
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Tab inserts 4 spaces
-      if (e.key === "Tab") {
-        e.preventDefault();
-        const textarea = e.currentTarget;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const value = textarea.value;
-        const newValue = value.substring(0, start) + "    " + value.substring(end);
-        handleCodeChange(newValue);
-        requestAnimationFrame(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + 4;
-        });
-        return;
-      }
-      // Ctrl+Enter saves
-      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        handleSave();
-        return;
-      }
-    },
-    [handleCodeChange, handleSave]
-  );
-
   if (!widget) return null;
 
   const activeEventDef = allEvents.find((e) => e.event === activeEvent);
-
-  // Line numbers
-  const lines = currentCode.split("\n");
-  const lineCount = Math.max(lines.length, 1);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
@@ -264,25 +281,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
               </p>
             </div>
             <div className="flex flex-1 mx-4 mb-1 border border-[#3c3c52] rounded overflow-hidden min-h-[240px]">
-              {/* Line numbers */}
-              <div className="bg-[#252536] text-[#5a5a72] text-[11px] font-mono py-2 px-2 text-right select-none overflow-hidden leading-[1.6] shrink-0">
-                {Array.from({ length: lineCount }, (_, i) => (
-                  <div key={i}>{i + 1}</div>
-                ))}
-              </div>
-              {/* Textarea */}
-              <textarea
-                ref={textareaRef}
-                value={currentCode}
-                onChange={(e) => handleCodeChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="flex-1 bg-[#1e1e2e] text-[#d4d4e8] text-xs font-mono p-2 resize-none focus:outline-none leading-[1.6] min-h-0"
-                placeholder="# Python event handler code"
-                spellCheck={false}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-              />
+              <div ref={editorContainerRef} className="flex-1 overflow-hidden" />
             </div>
           </div>
         )}
