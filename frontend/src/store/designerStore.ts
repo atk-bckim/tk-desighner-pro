@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { WidgetInstance, WidgetType, Project, MenuBarData, MenuItemData, TkVariable, TkVarType } from "../types/widgets";
+import type { WidgetInstance, WidgetType, Project, MenuBarData, MenuItemData, TkVariable, TkVarType, NonVisualComponent, NonVisualType } from "../types/widgets";
 import { createWidget, resetCounters } from "../utils/widgetDefaults";
 import { TEMPLATES } from "../templates/index";
 import { v4 as uuid } from "uuid";
@@ -95,6 +95,11 @@ interface DesignerState {
   removeVariable: (id: string) => void;
   renameVariable: (id: string, name: string) => void;
   updateVariableDefault: (id: string, defaultValue: string) => void;
+
+  nonVisuals: NonVisualComponent[];
+  addNonVisual: (type: NonVisualType) => void;
+  removeNonVisual: (id: string) => void;
+  updateNonVisual: (id: string, updates: Partial<NonVisualComponent>) => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -175,6 +180,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       rootBg: project.rootBg ?? "",
       rootResizable: project.rootResizable ?? true,
       variables: project.variables ?? [],
+      nonVisuals: project.nonVisuals ?? [],
     });
   },
 
@@ -189,6 +195,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       rootBg: s.rootBg,
       rootResizable: s.rootResizable,
       variables: s.variables,
+      nonVisuals: s.nonVisuals,
     };
   },
 
@@ -614,4 +621,19 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   removeVariable: (id) => set((s) => ({ variables: s.variables.filter(v => v.id !== id) })),
   renameVariable: (id, name) => set((s) => ({ variables: s.variables.map(v => v.id === id ? { ...v, name } : v) })),
   updateVariableDefault: (id, defaultValue) => set((s) => ({ variables: s.variables.map(v => v.id === id ? { ...v, defaultValue } : v) })),
+
+  nonVisuals: [],
+  addNonVisual: (type) => {
+    const id = uuid();
+    const name = `${type.toLowerCase()}_${get().nonVisuals.filter(n => n.type === type).length + 1}`;
+    const defaults: Record<string, Record<string, unknown>> = {
+      Timer: { interval: 1000, oneshot: false },
+      FileDialog: { mode: "open", title: "", filetypes: "" },
+      ColorChooser: { title: "", initialcolor: "" },
+      MessageBox: { title: "", message: "", mbType: "info" },
+    };
+    set((s) => ({ nonVisuals: [...s.nonVisuals, { id, type, name, props: defaults[type] ?? {} }] }));
+  },
+  removeNonVisual: (id) => set((s) => ({ nonVisuals: s.nonVisuals.filter(n => n.id !== id) })),
+  updateNonVisual: (id, updates) => set((s) => ({ nonVisuals: s.nonVisuals.map(n => n.id === id ? { ...n, ...updates } : n) })),
 }));

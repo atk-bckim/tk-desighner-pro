@@ -58,6 +58,15 @@ export interface TkVariable {
   defaultValue: string;
 }
 
+export type NonVisualType = "Timer" | "FileDialog" | "ColorChooser" | "MessageBox";
+
+export interface NonVisualComponent {
+  id: string;
+  type: NonVisualType;
+  name: string;
+  props: Record<string, unknown>;
+}
+
 export interface Project {
   name: string;
   canvasWidth: number;
@@ -67,6 +76,7 @@ export interface Project {
   rootBg?: string;
   rootResizable?: boolean;
   variables?: TkVariable[];
+  nonVisuals?: NonVisualComponent[];
 }
 
 export const WIDGET_TYPES: WidgetType[] = [

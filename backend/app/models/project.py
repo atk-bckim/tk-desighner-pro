@@ -62,6 +62,13 @@ class TkVariable(BaseModel):
     default_value: str = ""
 
 
+class NonVisualComponent(BaseModel):
+    id: str
+    type: str
+    name: str
+    props: dict[str, object] = {}
+
+
 class Project(BaseModel):
     name: str = "Untitled"
     canvas_width: int = 800
@@ -72,3 +79,4 @@ class Project(BaseModel):
     root_bg: str = ""
     root_resizable: bool = True
     variables: list[TkVariable] = []
+    non_visuals: list[NonVisualComponent] = []

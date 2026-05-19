@@ -1,4 +1,5 @@
 import { useDesignerStore } from "../store/designerStore";
+import type { NonVisualComponent } from "../types/widgets";
 import { useState } from "react";
 
 const TTK_TYPES = new Set(["Notebook", "Progressbar", "Combobox", "Treeview", "Sizegrip", "Separator"]);
@@ -18,17 +19,22 @@ function generateCode(
   projectName: string,
   rootBg: string,
   rootResizable: boolean,
+  nonVisuals: NonVisualComponent[],
 ): string {
+  // Track non-visual imports
+  const nvImports: string[] = [];
+  if (nonVisuals.some(nv => nv.type === "FileDialog")) nvImports.push("filedialog");
+  if (nonVisuals.some(nv => nv.type === "ColorChooser")) nvImports.push("colorchooser");
+  if (nonVisuals.some(nv => nv.type === "MessageBox")) nvImports.push("messagebox");
+
   const lines: string[] = [
     "import tkinter as tk",
     "from tkinter import ttk",
-    "",
-    "",
-    "def create_window():",
-    `    root = tk.Tk()`,
-    `    root.geometry("${canvasWidth}x${canvasHeight}")`,
-    `    root.title("${escapePy(projectName)}")`,
   ];
+  if (nvImports.length > 0) {
+    lines.push(`from tkinter import ${nvImports.join(", ")}`);
+  }
+  lines.push("", "", "def create_window():", `    root = tk.Tk()`, `    root.geometry("${canvasWidth}x${canvasHeight}")`, `    root.title("${escapePy(projectName)}")`);
 
   if (rootBg) {
     lines.push(`    root.configure(bg="${escapePy(rootBg)}")`);
@@ -175,6 +181,47 @@ function generateCode(
     renderWidget(w, "root", "    ");
   }
 
+  // Generate non-visual component code
+  if (nonVisuals.length > 0) {
+    lines.push("    # Non-visual components");
+    for (const nv of nonVisuals) {
+      if (nv.type === "Timer") {
+        const interval = Number(nv.props.interval) || 1000;
+        const oneshot = !!nv.props.oneshot;
+        lines.push(`    # ${nv.name}: root.after(${interval}, callback)${oneshot ? "  # one-shot" : ""}`);
+      } else if (nv.type === "FileDialog") {
+        const mode = String(nv.props.mode ?? "open");
+        const title = String(nv.props.title ?? "");
+        const titlePart = title ? `, title="${escapePy(title)}"` : "";
+        if (mode === "save") {
+          lines.push(`    # ${nv.name}: filedialog.asksaveasfilename(${titlePart.replace(", ", "")})`);
+        } else if (mode === "directory") {
+          lines.push(`    # ${nv.name}: filedialog.askdirectory(${titlePart.replace(", ", "")})`);
+        } else {
+          lines.push(`    # ${nv.name}: filedialog.askopenfilename(${titlePart.replace(", ", "")})`);
+        }
+      } else if (nv.type === "ColorChooser") {
+        const title = String(nv.props.title ?? "");
+        const titlePart = title ? `title="${escapePy(title)}"` : "";
+        lines.push(`    # ${nv.name}: colorchooser.askcolor(${titlePart})`);
+      } else if (nv.type === "MessageBox") {
+        const mbType = String(nv.props.mbType ?? "info");
+        const title = String(nv.props.title ?? "");
+        const message = String(nv.props.message ?? "");
+        if (mbType === "yesno") {
+          lines.push(`    # ${nv.name}: messagebox.askyesno(title="${escapePy(title)}", message="${escapePy(message)}")`);
+        } else if (mbType === "warning") {
+          lines.push(`    # ${nv.name}: messagebox.showwarning(title="${escapePy(title)}", message="${escapePy(message)}")`);
+        } else if (mbType === "error") {
+          lines.push(`    # ${nv.name}: messagebox.showerror(title="${escapePy(title)}", message="${escapePy(message)}")`);
+        } else {
+          lines.push(`    # ${nv.name}: messagebox.showinfo(title="${escapePy(title)}", message="${escapePy(message)}")`);
+        }
+      }
+    }
+    lines.push("");
+  }
+
   // Generate binding code for Scrollbar ↔ Text/Listbox
   const nameMap = new Map<string, string>();
   for (const w of widgets) {
@@ -208,11 +255,11 @@ function generateCode(
 }
 
 export function CodePreview() {
-  const { widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable } = useDesignerStore();
+  const { widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals } = useDesignerStore();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const code = generateCode(widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable);
+  const code = generateCode(widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals);
 
   const handleValidate = async () => {
     try {
@@ -240,6 +287,7 @@ export function CodePreview() {
           })),
           menu_bar: store.menuBar,
           variables: store.variables,
+          non_visuals: store.nonVisuals ?? [],
         }),
       });
       const data = await res.json();

@@ -8,6 +8,7 @@ import { PropertyPanel } from "./components/PropertyPanel";
 import { CodePreview } from "./components/CodePreview";
 import { ObjectTree } from "./components/ObjectTree";
 import { StatusBar } from "./components/StatusBar";
+import { ComponentTray } from "./components/ComponentTray";
 import { ToastContainer } from "./components/Toast";
 import { useDesignerStore } from "./store/designerStore";
 import type { WidgetType } from "./types/widgets";
@@ -251,6 +252,7 @@ export default function App() {
             <span className="text-[10px] text-[#8888a8]">{rightPanelOpen ? "▸" : "◂"}</span>
           </button>
         </div>
+        <ComponentTray />
         <StatusBar />
       </div>
       <DragOverlay>

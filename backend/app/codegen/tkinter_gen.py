@@ -58,16 +58,30 @@ def _layout_call(var_name: str, w, indent: str = "    ") -> str:
 
 
 def generate_tkinter_code(project: Project) -> str:
+    # Track non-visual imports
+    nv_imports: list[str] = []
+    for nv in project.non_visuals:
+        if nv.type == "FileDialog" and "filedialog" not in nv_imports:
+            nv_imports.append("filedialog")
+        elif nv.type == "ColorChooser" and "colorchooser" not in nv_imports:
+            nv_imports.append("colorchooser")
+        elif nv.type == "MessageBox" and "messagebox" not in nv_imports:
+            nv_imports.append("messagebox")
+
     lines = [
         "import tkinter as tk",
         "from tkinter import ttk",
+    ]
+    if nv_imports:
+        lines.append(f"from tkinter import {', '.join(nv_imports)}")
+    lines.extend([
         "",
         "",
         "def create_window():",
         "    root = tk.Tk()",
         f'    root.geometry("{project.canvas_width}x{project.canvas_height}")',
         f'    root.title("{_escape(project.name)}")',
-    ]
+    ])
 
     if project.root_bg:
         lines.append(f'    root.configure(bg="{_escape(project.root_bg)}")')
@@ -213,6 +227,43 @@ def generate_tkinter_code(project: Project) -> str:
                 for cl in code_lines:
                     lines.append(f"        {cl}")
                 lines.append(f'    {var_name}.bind("{_escape(event_name)}", {func_name})')
+
+    # Generate non-visual component code
+    if project.non_visuals:
+        lines.append("    # Non-visual components")
+        for nv in project.non_visuals:
+            if nv.type == "Timer":
+                interval = nv.props.get("interval", 1000)
+                oneshot = nv.props.get("oneshot", False)
+                oneshot_note = "  # one-shot" if oneshot else ""
+                lines.append(f"    # {nv.name}: root.after({interval}, callback){oneshot_note}")
+            elif nv.type == "FileDialog":
+                mode = str(nv.props.get("mode", "open"))
+                title = str(nv.props.get("title", ""))
+                title_part = f', title="{_escape(title)}"' if title else ""
+                if mode == "save":
+                    lines.append(f"    # {nv.name}: filedialog.asksaveasfilename({title_part.lstrip(', ')})")
+                elif mode == "directory":
+                    lines.append(f"    # {nv.name}: filedialog.askdirectory({title_part.lstrip(', ')})")
+                else:
+                    lines.append(f"    # {nv.name}: filedialog.askopenfilename({title_part.lstrip(', ')})")
+            elif nv.type == "ColorChooser":
+                title = str(nv.props.get("title", ""))
+                title_part = f'title="{_escape(title)}"' if title else ""
+                lines.append(f"    # {nv.name}: colorchooser.askcolor({title_part})")
+            elif nv.type == "MessageBox":
+                mb_type = str(nv.props.get("mbType", "info"))
+                title = str(nv.props.get("title", ""))
+                message = str(nv.props.get("message", ""))
+                if mb_type == "yesno":
+                    lines.append(f'    # {nv.name}: messagebox.askyesno(title="{_escape(title)}", message="{_escape(message)}")')
+                elif mb_type == "warning":
+                    lines.append(f'    # {nv.name}: messagebox.showwarning(title="{_escape(title)}", message="{_escape(message)}")')
+                elif mb_type == "error":
+                    lines.append(f'    # {nv.name}: messagebox.showerror(title="{_escape(title)}", message="{_escape(message)}")')
+                else:
+                    lines.append(f'    # {nv.name}: messagebox.showinfo(title="{_escape(title)}", message="{_escape(message)}")')
+        lines.append("")
 
     lines.append("    return root")
     lines.append("")

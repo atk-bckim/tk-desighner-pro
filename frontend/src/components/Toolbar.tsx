@@ -3,9 +3,10 @@ import { useDesignerStore } from "../store/designerStore";
 import { TEMPLATES } from "../templates/index";
 import { showToast } from "./Toast";
 import { VariablePanel } from "./VariablePanel";
+import type { NonVisualType } from "../types/widgets";
 
 export function Toolbar() {
-  const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap, loadTemplate, zoom, setZoom, tabOrderMode, toggleTabOrderMode } =
+  const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap, loadTemplate, zoom, setZoom, tabOrderMode, toggleTabOrderMode, addNonVisual } =
     useDesignerStore();
   const undoStackLen = useDesignerStore((s) => s.undoStack.length);
   const redoStackLen = useDesignerStore((s) => s.redoStack.length);
@@ -73,6 +74,7 @@ export function Toolbar() {
           root_bg: project.rootBg ?? "",
           root_resizable: project.rootResizable ?? true,
           variables: project.variables,
+          non_visuals: project.nonVisuals ?? [],
         }),
       });
       if (!res.ok) {
@@ -118,6 +120,7 @@ export function Toolbar() {
           root_bg: project.rootBg ?? "",
           root_resizable: project.rootResizable ?? true,
           variables: project.variables,
+          non_visuals: project.nonVisuals ?? [],
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -170,6 +173,25 @@ export function Toolbar() {
               <span>{(tpl as { label: string }).label}</span>
             </button>
           ))}
+          </div>
+        </div>
+      </div>
+      <div className="relative group">
+        <button className={btnGhost}>Components &#9662;</button>
+        <div className="absolute left-0 top-full pt-1 hidden group-hover:block z-50">
+          <div className="bg-[#252536] border border-[#3c3c52] rounded shadow-xl py-1 min-w-40">
+            {([
+              ["Timer", "\u23F1"],
+              ["FileDialog", "\uD83D\uDCC2"],
+              ["ColorChooser", "\uD83C\uDFA8"],
+              ["MessageBox", "\uD83D\uDCAC"],
+            ] as [NonVisualType, string][]).map(([type, icon]) => (
+              <button key={type} className="w-full text-left px-3 py-1.5 text-xs text-[#8888a8] hover:bg-[#363650] hover:text-[#d4d4e8] flex items-center gap-2 transition-colors"
+                onClick={() => addNonVisual(type)}>
+                <span>{icon}</span>
+                <span>{type}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
