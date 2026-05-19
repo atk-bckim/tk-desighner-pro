@@ -751,7 +751,7 @@ export function Canvas() {
                   ))}
                 </div>
               )}
-              {rootWidgets.map(renderWidget)}
+              {rootWidgets.map(w => renderWidget(w))}
               {selRect && (
                 <div
                   className="absolute border border-blue-400 bg-blue-400/10 pointer-events-none"
