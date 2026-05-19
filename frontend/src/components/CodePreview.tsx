@@ -1,5 +1,5 @@
 import { useDesignerStore } from "../store/designerStore";
-import type { NonVisualComponent } from "../types/widgets";
+import type { NonVisualComponent, ProjectResource } from "../types/widgets";
 import { useState } from "react";
 
 const TTK_TYPES = new Set(["Notebook", "Progressbar", "Combobox", "Treeview", "Sizegrip", "Separator"]);
@@ -20,6 +20,7 @@ function generateCode(
   rootBg: string,
   rootResizable: boolean,
   nonVisuals: NonVisualComponent[],
+  resources: ProjectResource[],
 ): string {
   // Track non-visual imports
   const nvImports: string[] = [];
@@ -47,6 +48,22 @@ function generateCode(
   if (tkTheme && tkTheme !== "default") {
     lines.push("    style = ttk.Style(root)");
     lines.push(`    style.theme_use("${tkTheme}")`);
+    lines.push("");
+  }
+
+  // Generate PhotoImage declarations for used resources
+  const usedResourceIds = new Set<string>();
+  for (const w of widgets) {
+    if (w.props.image && typeof w.props.image === "string") {
+      usedResourceIds.add(w.props.image);
+    }
+  }
+  const usedResources = resources.filter(r => usedResourceIds.has(r.id));
+  if (usedResources.length > 0) {
+    lines.push("    # Image resources");
+    for (const res of usedResources) {
+      lines.push(`    ${res.name.replace(/[^a-zA-Z0-9_]/g, "_")} = tk.PhotoImage(data="${escapePy(res.dataUrl)}")`);
+    }
     lines.push("");
   }
 
@@ -82,6 +99,13 @@ function generateCode(
     const parts: string[] = [];
     for (const [k, v] of Object.entries(w.props)) {
       if (excludeKeys.has(k) || v === "" || v === undefined || v === null) continue;
+      if (k === "image") {
+        const resource = resources.find(r => r.id === v);
+        if (resource) {
+          parts.push(`image=${resource.name.replace(/[^a-zA-Z0-9_]/g, "_")}`);
+        }
+        continue;
+      }
       if (RAW_PROPS.has(k)) {
         parts.push(`${k}=${v}`);
       } else if (TUPLE_PROPS.has(k) && typeof v === "string") {
@@ -255,11 +279,11 @@ function generateCode(
 }
 
 export function CodePreview() {
-  const { widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals } = useDesignerStore();
+  const { widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals, resources } = useDesignerStore();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const code = generateCode(widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals);
+  const code = generateCode(widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals, resources);
 
   const handleValidate = async () => {
     try {
@@ -288,6 +312,7 @@ export function CodePreview() {
           menu_bar: store.menuBar,
           variables: store.variables,
           non_visuals: store.nonVisuals ?? [],
+          resources: (store.resources ?? []).map(r => ({ id: r.id, name: r.name, type: r.type, data_url: r.dataUrl })),
         }),
       });
       const data = await res.json();

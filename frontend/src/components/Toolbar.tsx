@@ -3,6 +3,7 @@ import { useDesignerStore } from "../store/designerStore";
 import { TEMPLATES } from "../templates/index";
 import { showToast } from "./Toast";
 import { VariablePanel } from "./VariablePanel";
+import { ResourcePanel } from "./ResourcePanel";
 import type { NonVisualType } from "../types/widgets";
 
 export function Toolbar() {
@@ -11,6 +12,7 @@ export function Toolbar() {
   const undoStackLen = useDesignerStore((s) => s.undoStack.length);
   const redoStackLen = useDesignerStore((s) => s.redoStack.length);
   const [varPanelOpen, setVarPanelOpen] = useState(false);
+  const [resPanelOpen, setResPanelOpen] = useState(false);
 
   const handleSave = () => {
     const project = exportProject();
@@ -75,6 +77,7 @@ export function Toolbar() {
           root_resizable: project.rootResizable ?? true,
           variables: project.variables,
           non_visuals: project.nonVisuals ?? [],
+          resources: (project.resources ?? []).map(r => ({ id: r.id, name: r.name, type: r.type, data_url: r.dataUrl })),
         }),
       });
       if (!res.ok) {
@@ -121,6 +124,7 @@ export function Toolbar() {
           root_resizable: project.rootResizable ?? true,
           variables: project.variables,
           non_visuals: project.nonVisuals ?? [],
+          resources: (project.resources ?? []).map(r => ({ id: r.id, name: r.name, type: r.type, data_url: r.dataUrl })),
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -203,6 +207,7 @@ export function Toolbar() {
         Tab Order
       </button>
       <button onClick={() => setVarPanelOpen(true)} className={btnGhost} title="Variables">Variables</button>
+      <button onClick={() => setResPanelOpen(true)} className={btnGhost} title="Images">Images</button>
       <div className="flex-1" />
       <div className="relative group">
         <button className={btnGhost}>{(zoom * 100).toFixed(0)}%</button>
@@ -221,6 +226,7 @@ export function Toolbar() {
       <button onClick={handleExport} className={btnWarn}>Export .py</button>
     </div>
     {varPanelOpen && <VariablePanel onClose={() => setVarPanelOpen(false)} />}
+    {resPanelOpen && <ResourcePanel onClose={() => setResPanelOpen(false)} />}
     </>
   );
 }

@@ -9,7 +9,7 @@ export function PropertyPanel() {
   const selectedIds = useDesignerStore((s) => s.selectedIds);
   const widgets = useDesignerStore((s) => s.widgets);
   const menuBar = useDesignerStore((s) => s.menuBar);
-  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets, tkTheme, setTkTheme, distributeWidgets, makeSameSize, addMenuBar, removeMenuBar, addMenu, removeMenu, renameMenu, addMenuItem, removeMenuItem, updateMenuItem, rootBg, setRootBg, rootResizable, setRootResizable, variables, setLayoutManager, updateGridLayout } =
+  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets, tkTheme, setTkTheme, distributeWidgets, makeSameSize, addMenuBar, removeMenuBar, addMenu, removeMenu, renameMenu, addMenuItem, removeMenuItem, updateMenuItem, rootBg, setRootBg, rootResizable, setRootResizable, variables, resources, setLayoutManager, updateGridLayout } =
     useDesignerStore();
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
@@ -322,6 +322,17 @@ export function PropertyPanel() {
                     <select className={inputCls} value={String(widget.props[prop.key] ?? "")} onChange={(e) => { snapshot(); updateWidgetProp(widget.id, prop.key, e.target.value); }}>
                       <option value="">— none —</option>
                       {variables.map(v => <option key={v.id} value={v.name}>{v.name} ({v.varType})</option>)}
+                    </select>
+                  </label>
+                );
+              }
+              if (prop.type === "resource") {
+                return (
+                  <label key={prop.key}>
+                    <span className={labelCls}>{prop.label}</span>
+                    <select className={inputCls} value={String(widget.props[prop.key] ?? "")} onChange={(e) => { snapshot(); updateWidgetProp(widget.id, prop.key, e.target.value || undefined); }}>
+                      <option value="">— none —</option>
+                      {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
                   </label>
                 );

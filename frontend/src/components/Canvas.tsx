@@ -141,6 +141,13 @@ function renderWidgetContent(widget: WidgetInstance) {
   const textColor = fgColor ? { color: fgColor } : undefined;
   const anchorStyle = getAnchorJustifyStyle(widget);
 
+  // Render image from resource if set
+  const resources = useDesignerStore.getState().resources;
+  const imageResource = typeof widget.props.image === "string" ? resources.find(r => r.id === widget.props.image) : undefined;
+  if (imageResource) {
+    return <img src={imageResource.dataUrl} className="max-w-full max-h-full object-contain" alt="" />;
+  }
+
   switch (widget.type) {
     case "Button":
       return (

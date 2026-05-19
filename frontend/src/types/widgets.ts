@@ -67,6 +67,13 @@ export interface NonVisualComponent {
   props: Record<string, unknown>;
 }
 
+export interface ProjectResource {
+  id: string;
+  name: string;
+  type: "image";
+  dataUrl: string;
+}
+
 export interface Project {
   name: string;
   canvasWidth: number;
@@ -77,6 +84,7 @@ export interface Project {
   rootResizable?: boolean;
   variables?: TkVariable[];
   nonVisuals?: NonVisualComponent[];
+  resources?: ProjectResource[];
 }
 
 export const WIDGET_TYPES: WidgetType[] = [

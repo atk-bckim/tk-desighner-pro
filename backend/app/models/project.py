@@ -69,6 +69,13 @@ class NonVisualComponent(BaseModel):
     props: dict[str, object] = {}
 
 
+class ProjectResource(BaseModel):
+    id: str
+    name: str
+    type: str = "image"
+    data_url: str = ""
+
+
 class Project(BaseModel):
     name: str = "Untitled"
     canvas_width: int = 800
@@ -80,3 +87,4 @@ class Project(BaseModel):
     root_resizable: bool = True
     variables: list[TkVariable] = []
     non_visuals: list[NonVisualComponent] = []
+    resources: list[ProjectResource] = []

@@ -5,7 +5,7 @@ def _escape(s: str) -> str:
     return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 # Props that are UI-only and should not appear in generated Tkinter code
-_UI_ONLY_PROPS = {"activeTab"}
+_UI_ONLY_PROPS = {"activeTab", "image"}
 
 # ttk widget types (use ttk. prefix instead of tk.)
 _TTK_TYPES = {"Notebook", "Progressbar", "Combobox", "Treeview", "Sizegrip", "Separator"}
@@ -120,6 +120,22 @@ def generate_tkinter_code(project: Project) -> str:
             lines.append(f"    {var.name} = tk.{var.var_type}({default_part})")
         lines.append("")
 
+    # Generate PhotoImage declarations for used resources
+    used_resource_ids: set[str] = set()
+    for w in project.widgets:
+        img_id = w.props.get("image")
+        if img_id and isinstance(img_id, str):
+            used_resource_ids.add(img_id)
+    resource_map: dict[str, object] = {}
+    if used_resource_ids:
+        lines.append("    # Image resources")
+        for res in project.resources:
+            if res.id in used_resource_ids:
+                safe_name = "".join(c if c.isalnum() or c == "_" else "_" for c in res.name)
+                resource_map[res.id] = safe_name
+                lines.append(f'    {safe_name} = tk.PhotoImage(data="{_escape(res.data_url)}")')
+        lines.append("")
+
     # Build parent-child map and name lookup
     children_map: dict[str | None, list] = {}
     name_map: dict[str, str] = {}  # id -> var_name
@@ -176,6 +192,10 @@ def generate_tkinter_code(project: Project) -> str:
             return
 
         props_parts = _filter_props(w.props)
+        # Handle image prop separately using resource_map
+        img_id = w.props.get("image")
+        if img_id and isinstance(img_id, str) and img_id in resource_map:
+            props_parts.append(f"image={resource_map[img_id]}")
         props_str = ", " + ", ".join(props_parts) if props_parts else ""
         module = "ttk" if w.type in _TTK_TYPES else "tk"
         lines.append(f"{indent}{var_name} = {module}.{w.type}({parent_var}{props_str})")

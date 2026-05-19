@@ -4,7 +4,7 @@ import { v4 as uuid } from "uuid";
 interface PropSpec {
   key: string;
   label: string;
-  type: "text" | "number" | "color" | "select";
+  type: "text" | "number" | "color" | "select" | "resource";
   options?: string[];
 }
 
@@ -46,6 +46,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "state", label: "State", type: "select", options: ["normal", "disabled", "active"] },
       { key: "bd", label: "Border width", type: "number" },
       { key: "command", label: "Command", type: "text" },
+      { key: "image", label: "Image", type: "resource" },
       { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
@@ -62,6 +63,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "state", label: "State", type: "select", options: ["normal", "disabled"] },
       { key: "wraplength", label: "Wrap length", type: "number" },
       { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
+      { key: "image", label: "Image", type: "resource" },
     ],
   },
   Entry: {
@@ -104,6 +106,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
       { key: "command", label: "Command", type: "text" },
       { key: "variable", label: "Variable", type: "text" },
+      { key: "image", label: "Image", type: "resource" },
       { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },
@@ -120,6 +123,7 @@ const SPECS: Record<WidgetType, WidgetSpec> = {
       { key: "justify", label: "Justify", type: "select", options: ["left", "center", "right"] },
       { key: "command", label: "Command", type: "text" },
       { key: "variable", label: "Variable", type: "text" },
+      { key: "image", label: "Image", type: "resource" },
       { key: "tabIndex", label: "Tab Index", type: "number" },
     ],
   },

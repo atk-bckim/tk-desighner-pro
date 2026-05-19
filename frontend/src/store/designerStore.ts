@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { WidgetInstance, WidgetType, Project, MenuBarData, MenuItemData, TkVariable, TkVarType, NonVisualComponent, NonVisualType } from "../types/widgets";
+import type { WidgetInstance, WidgetType, Project, MenuBarData, MenuItemData, TkVariable, TkVarType, NonVisualComponent, NonVisualType, ProjectResource } from "../types/widgets";
 import { createWidget, resetCounters } from "../utils/widgetDefaults";
 import { TEMPLATES } from "../templates/index";
 import { v4 as uuid } from "uuid";
@@ -100,6 +100,10 @@ interface DesignerState {
   addNonVisual: (type: NonVisualType) => void;
   removeNonVisual: (id: string) => void;
   updateNonVisual: (id: string, updates: Partial<NonVisualComponent>) => void;
+
+  resources: ProjectResource[];
+  addResource: (name: string, dataUrl: string) => void;
+  removeResource: (id: string) => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -181,6 +185,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       rootResizable: project.rootResizable ?? true,
       variables: project.variables ?? [],
       nonVisuals: project.nonVisuals ?? [],
+      resources: project.resources ?? [],
     });
   },
 
@@ -196,6 +201,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       rootResizable: s.rootResizable,
       variables: s.variables,
       nonVisuals: s.nonVisuals,
+      resources: s.resources,
     };
   },
 
@@ -636,4 +642,22 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   },
   removeNonVisual: (id) => set((s) => ({ nonVisuals: s.nonVisuals.filter(n => n.id !== id) })),
   updateNonVisual: (id, updates) => set((s) => ({ nonVisuals: s.nonVisuals.map(n => n.id === id ? { ...n, ...updates } : n) })),
+
+  resources: [],
+  addResource: (name, dataUrl) => {
+    const id = uuid();
+    set((s) => ({ resources: [...s.resources, { id, name, type: "image", dataUrl }] }));
+  },
+  removeResource: (id) => {
+    const { resources, widgets } = get();
+    const updatedWidgets = widgets.map(w => {
+      if (w.props.image === id) {
+        const props = { ...w.props };
+        delete props.image;
+        return { ...w, props };
+      }
+      return w;
+    });
+    set({ resources: resources.filter(r => r.id !== id), widgets: updatedWidgets });
+  },
 }));
