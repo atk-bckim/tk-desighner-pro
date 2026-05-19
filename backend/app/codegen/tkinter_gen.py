@@ -76,6 +76,13 @@ def generate_tkinter_code(project: Project) -> str:
         lines.append("    root.config(menu=menubar)")
         lines.append("")
 
+    # Generate Tkinter variable declarations
+    if project.variables:
+        for var in project.variables:
+            default_part = f', value="{_escape(var.default_value)}"' if var.default_value else ""
+            lines.append(f"    {var.name} = tk.{var.var_type}({default_part})")
+        lines.append("")
+
     # Build parent-child map and name lookup
     children_map: dict[str | None, list] = {}
     name_map: dict[str, str] = {}  # id -> var_name

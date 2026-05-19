@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { WidgetInstance, WidgetType, Project, MenuBarData, MenuItemData } from "../types/widgets";
+import type { WidgetInstance, WidgetType, Project, MenuBarData, MenuItemData, TkVariable, TkVarType } from "../types/widgets";
 import { createWidget, resetCounters } from "../utils/widgetDefaults";
 import { TEMPLATES } from "../templates/index";
 import { v4 as uuid } from "uuid";
@@ -86,6 +86,12 @@ interface DesignerState {
 
   tabOrderMode: boolean;
   toggleTabOrderMode: () => void;
+
+  variables: TkVariable[];
+  addVariable: (varType: TkVarType) => void;
+  removeVariable: (id: string) => void;
+  renameVariable: (id: string, name: string) => void;
+  updateVariableDefault: (id: string, defaultValue: string) => void;
 }
 
 export const useDesignerStore = create<DesignerState>((set, get) => ({
@@ -165,6 +171,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       menuBar: project.menuBar ?? null,
       rootBg: project.rootBg ?? "",
       rootResizable: project.rootResizable ?? true,
+      variables: project.variables ?? [],
     });
   },
 
@@ -178,6 +185,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
       menuBar: s.menuBar,
       rootBg: s.rootBg,
       rootResizable: s.rootResizable,
+      variables: s.variables,
     };
   },
 
@@ -580,4 +588,15 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
 
   tabOrderMode: false,
   toggleTabOrderMode: () => set((s) => ({ tabOrderMode: !s.tabOrderMode })),
+
+  variables: [],
+  addVariable: (varType) => {
+    const id = uuid();
+    const prefix = varType.replace("Var", "").toLowerCase();
+    const name = `${prefix}_var_${get().variables.length + 1}`;
+    set((s) => ({ variables: [...s.variables, { id, name, varType, defaultValue: "" }] }));
+  },
+  removeVariable: (id) => set((s) => ({ variables: s.variables.filter(v => v.id !== id) })),
+  renameVariable: (id, name) => set((s) => ({ variables: s.variables.map(v => v.id === id ? { ...v, name } : v) })),
+  updateVariableDefault: (id, defaultValue) => set((s) => ({ variables: s.variables.map(v => v.id === id ? { ...v, defaultValue } : v) })),
 }));

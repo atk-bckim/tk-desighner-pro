@@ -5,7 +5,15 @@ WidgetType = Literal[
     "Button", "Label", "Entry", "Text",
     "Checkbutton", "Radiobutton", "Listbox", "Scale", "Frame",
     "LabelFrame", "OptionMenu", "Spinbox", "Scrollbar", "Separator",
+    "Notebook", "Toplevel", "Progressbar", "Combobox", "Treeview",
+    "Sizegrip", "Menubutton", "Message",
 ]
+
+
+class WidgetBindings(BaseModel):
+    xscrollcommand: str | None = None
+    yscrollcommand: str | None = None
+    command: str | None = None
 
 
 class WidgetInstance(BaseModel):
@@ -18,6 +26,32 @@ class WidgetInstance(BaseModel):
     width: float
     height: float
     props: dict[str, object] = {}
+    bindings: WidgetBindings | None = None
+    events: dict[str, str] = {}
+
+
+class MenuItemData(BaseModel):
+    id: str
+    label: str = ""
+    accelerator: str | None = None
+    separator: bool = False
+
+
+class MenuData(BaseModel):
+    id: str
+    label: str = ""
+    items: list[MenuItemData] = []
+
+
+class MenuBarData(BaseModel):
+    menus: list[MenuData] = []
+
+
+class TkVariable(BaseModel):
+    id: str
+    name: str
+    var_type: str = "StringVar"
+    default_value: str = ""
 
 
 class Project(BaseModel):
@@ -26,3 +60,7 @@ class Project(BaseModel):
     canvas_height: int = 600
     tk_theme: str = "default"
     widgets: list[WidgetInstance]
+    menu_bar: MenuBarData | None = None
+    root_bg: str = ""
+    root_resizable: bool = True
+    variables: list[TkVariable] = []

@@ -9,7 +9,7 @@ export function PropertyPanel() {
   const selectedIds = useDesignerStore((s) => s.selectedIds);
   const widgets = useDesignerStore((s) => s.widgets);
   const menuBar = useDesignerStore((s) => s.menuBar);
-  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets, tkTheme, setTkTheme, distributeWidgets, makeSameSize, addMenuBar, removeMenuBar, addMenu, removeMenu, renameMenu, addMenuItem, removeMenuItem, updateMenuItem, rootBg, setRootBg, rootResizable, setRootResizable } =
+  const { moveWidget, resizeWidget, updateWidgetProp, removeWidget, snapshot, canvasWidth, canvasHeight, setCanvasSize, bringToFront, sendToBack, renameWidget, addTab, removeTab, toggleLock, alignWidgets, tkTheme, setTkTheme, distributeWidgets, makeSameSize, addMenuBar, removeMenuBar, addMenu, removeMenu, renameMenu, addMenuItem, removeMenuItem, updateMenuItem, rootBg, setRootBg, rootResizable, setRootResizable, variables } =
     useDesignerStore();
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
 
@@ -213,6 +213,17 @@ export function PropertyPanel() {
           <div className={sectionTitleCls}>Widget</div>
           <div className="flex flex-col gap-1.5">
             {editableProps.map((prop) => {
+              if (prop.key === "variable" || prop.key === "textvariable") {
+                return (
+                  <label key={prop.key}>
+                    <span className={labelCls}>{prop.label}</span>
+                    <select className={inputCls} value={String(widget.props[prop.key] ?? "")} onChange={(e) => { snapshot(); updateWidgetProp(widget.id, prop.key, e.target.value); }}>
+                      <option value="">— none —</option>
+                      {variables.map(v => <option key={v.id} value={v.name}>{v.name} ({v.varType})</option>)}
+                    </select>
+                  </label>
+                );
+              }
               if (prop.key === "font") {
                 return (
                   <label key={prop.key}>

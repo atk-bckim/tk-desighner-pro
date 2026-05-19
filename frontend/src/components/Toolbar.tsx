@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useDesignerStore } from "../store/designerStore";
 import { TEMPLATES } from "../templates/index";
 import { showToast } from "./Toast";
+import { VariablePanel } from "./VariablePanel";
 
 export function Toolbar() {
   const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap, loadTemplate, zoom, setZoom, tabOrderMode, toggleTabOrderMode } =
     useDesignerStore();
   const undoStackLen = useDesignerStore((s) => s.undoStack.length);
   const redoStackLen = useDesignerStore((s) => s.redoStack.length);
+  const [varPanelOpen, setVarPanelOpen] = useState(false);
 
   const handleSave = () => {
     const project = exportProject();
@@ -61,6 +64,7 @@ export function Toolbar() {
           menu_bar: project.menuBar,
           root_bg: project.rootBg ?? "",
           root_resizable: project.rootResizable ?? true,
+          variables: project.variables,
         }),
       });
       if (!res.ok) {
@@ -97,6 +101,7 @@ export function Toolbar() {
           menu_bar: project.menuBar,
           root_bg: project.rootBg ?? "",
           root_resizable: project.rootResizable ?? true,
+          variables: project.variables,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -119,6 +124,7 @@ export function Toolbar() {
   const btnWarn = `${btnBase} bg-[#f59e0b] hover:bg-[#fbbf24] text-black`;
 
   return (
+    <>
     <div className="h-10 bg-[#252536] border-b border-[#3c3c52] flex items-center px-3 gap-1 shrink-0 select-none">
       <span className="text-[#06b6d4] font-bold text-sm tracking-tight mr-2">TD</span>
       <div className="w-px h-5 bg-[#3c3c52]" />
@@ -158,6 +164,7 @@ export function Toolbar() {
       >
         Tab Order
       </button>
+      <button onClick={() => setVarPanelOpen(true)} className={btnGhost} title="Variables">Variables</button>
       <div className="flex-1" />
       <div className="relative group">
         <button className={btnGhost}>{(zoom * 100).toFixed(0)}%</button>
@@ -175,5 +182,7 @@ export function Toolbar() {
       <button onClick={handlePreview} className={btnSuccess}>Preview</button>
       <button onClick={handleExport} className={btnWarn}>Export .py</button>
     </div>
+    {varPanelOpen && <VariablePanel onClose={() => setVarPanelOpen(false)} />}
+    </>
   );
 }

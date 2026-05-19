@@ -217,6 +217,7 @@ export function CodePreview() {
             bindings: w.bindings || {}, events: w.events || {},
           })),
           menu_bar: store.menuBar,
+          variables: store.variables,
         }),
       });
       const data = await res.json();
