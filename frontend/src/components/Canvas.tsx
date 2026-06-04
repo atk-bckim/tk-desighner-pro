@@ -513,7 +513,7 @@ function WidgetRenderer({
       ref={isContainer ? setFrameRef : undefined}
       className={`border border-gray-300 rounded flex items-center justify-center cursor-move select-none ${
         isGridChild ? "" : "absolute"
-      } ${isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-transparent" : ""
+      } ${isSelected ? "ring-2 ring-[var(--td-accent)] ring-offset-2 ring-offset-[var(--td-canvas-surround)]" : ""
       } ${isContainer && isFrameOver ? "ring-2 ring-green-400" : ""}`}
       style={{
         ...(isGridChild ? {} : { left: widget.x, top: widget.y }),
@@ -536,10 +536,10 @@ function WidgetRenderer({
       {isContainer ? renderContainerContent() : renderWidgetContent(widget)}
       {isSelected && !widget.locked && (
         <>
-          <div className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-se-resize" onMouseDown={createResizeHandler("se")} />
-          <div className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-white rounded-sm cursor-sw-resize" onMouseDown={createResizeHandler("sw")} />
-          <div className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-white rounded-sm cursor-ne-resize" onMouseDown={createResizeHandler("ne")} />
-          <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-white rounded-sm cursor-nw-resize" onMouseDown={createResizeHandler("nw")} />
+          <div className="absolute -right-1.5 -bottom-1.5 h-3 w-3 cursor-se-resize rounded-sm border border-cyan-200 bg-[var(--td-accent)] shadow" onMouseDown={createResizeHandler("se")} />
+          <div className="absolute -left-1.5 -bottom-1.5 h-3 w-3 cursor-sw-resize rounded-sm border border-cyan-200 bg-[var(--td-accent)] shadow" onMouseDown={createResizeHandler("sw")} />
+          <div className="absolute -right-1.5 -top-1.5 h-3 w-3 cursor-ne-resize rounded-sm border border-cyan-200 bg-[var(--td-accent)] shadow" onMouseDown={createResizeHandler("ne")} />
+          <div className="absolute -left-1.5 -top-1.5 h-3 w-3 cursor-nw-resize rounded-sm border border-cyan-200 bg-[var(--td-accent)] shadow" onMouseDown={createResizeHandler("nw")} />
         </>
       )}
       {widget.locked && (
@@ -563,7 +563,7 @@ function WidgetRenderer({
         </div>
       )}
       {dragInfo && (
-        <div className="absolute -top-6 left-0 bg-black/75 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap pointer-events-none z-50">
+        <div className="absolute -top-7 left-0 z-50 whitespace-nowrap rounded-md border border-[var(--td-accent-border)] bg-[var(--td-bg)] px-2 py-1 font-mono text-[10px] text-cyan-100 shadow-xl pointer-events-none">
           x:{dragInfo.x} y:{dragInfo.y} | {dragInfo.w}×{dragInfo.h}
         </div>
       )}
@@ -671,7 +671,7 @@ export function Canvas() {
   return (
     <div
       ref={scrollRef}
-      className="flex-1 overflow-auto bg-[#141422] p-4"
+      className="flex-1 overflow-auto bg-[radial-gradient(circle_at_50%_0%,rgba(24,198,230,0.08),transparent_32%),var(--td-canvas-surround)] p-5"
       style={{ scrollbarWidth: "thin", scrollbarColor: "#06b6d440 transparent" }}
       onMouseDown={(e) => {
         if (e.button === 1) {
@@ -759,6 +759,14 @@ export function Canvas() {
                   ))}
                 </div>
               )}
+              {rootWidgets.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-[320px] rounded-lg border border-[var(--td-border)] bg-white/90 px-5 py-4 text-center shadow-xl">
+                    <div className="text-[13px] font-semibold text-slate-800">Start designing your Tkinter window</div>
+                    <p className="mt-1 text-[11px] leading-5 text-slate-500">Drag widgets from the Studio Rail or load a template from the command bar.</p>
+                  </div>
+                </div>
+              )}
               {rootWidgets.map(w => renderWidget(w))}
               {selRect && (
                 <div
@@ -772,10 +780,10 @@ export function Canvas() {
                 />
               )}
               {guides.v.map((x, i) => (
-                <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-red-400 pointer-events-none z-50" style={{ left: x }} />
+                <div key={`v${i}`} className="absolute top-0 bottom-0 w-px bg-[var(--td-warning)] pointer-events-none z-50" style={{ left: x }} />
               ))}
               {guides.h.map((y, i) => (
-                <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-red-400 pointer-events-none z-50" style={{ top: y }} />
+                <div key={`h${i}`} className="absolute left-0 right-0 h-px bg-[var(--td-warning)] pointer-events-none z-50" style={{ top: y }} />
               ))}
             </div>
           </div>

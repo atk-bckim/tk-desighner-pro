@@ -13,14 +13,16 @@ export function Ruler({ length, direction, zoom }: RulerProps) {
 
   return (
     <div
-      className="bg-gray-800 shrink-0 relative overflow-hidden"
+      className={`relative shrink-0 overflow-hidden bg-[var(--td-sidebar)] text-[var(--td-muted)] ${
+        isH ? "border-b border-[var(--td-border)]" : "border-r border-[var(--td-border)]"
+      }`}
       style={{
         [isH ? "width" : "height"]: `${length * zoom}px`,
         [isH ? "height" : "width"]: "20px",
       }}
     >
       {ticks.map(t => (
-        <div key={t.pos} className="absolute text-gray-500" style={{
+        <div key={t.pos} className="absolute text-[var(--td-muted)]" style={{
           [isH ? "left" : "top"]: `${t.pos * zoom}px`,
           [isH ? "top" : "left"]: 0,
           [isH ? "width" : "height"]: "1px",
