@@ -13,7 +13,7 @@ export function Ruler({ length, direction, zoom }: RulerProps) {
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden bg-[var(--td-sidebar)] text-[var(--td-muted)] ${
+      className={`relative shrink-0 overflow-hidden bg-[var(--td-panel)] text-[var(--td-text-muted)] ${
         isH ? "border-b border-[var(--td-border)]" : "border-r border-[var(--td-border)]"
       }`}
       style={{
@@ -22,7 +22,7 @@ export function Ruler({ length, direction, zoom }: RulerProps) {
       }}
     >
       {ticks.map(t => (
-        <div key={t.pos} className="absolute text-[var(--td-muted)]" style={{
+        <div key={t.pos} className="absolute text-[var(--td-text-muted)]" style={{
           [isH ? "left" : "top"]: `${t.pos * zoom}px`,
           [isH ? "top" : "left"]: 0,
           [isH ? "width" : "height"]: "1px",
