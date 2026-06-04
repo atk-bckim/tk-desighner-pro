@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { CommandBar } from "./components/CommandBar";
 import { StudioRail } from "./components/StudioRail";
 import { Canvas } from "./components/Canvas";
-import { PropertyPanel } from "./components/PropertyPanel";
+import { InspectorPanel } from "./components/InspectorPanel";
 import { CodePreview } from "./components/CodePreview";
 import { StatusBar } from "./components/StatusBar";
 import { ComponentTray } from "./components/ComponentTray";
@@ -248,7 +248,7 @@ export default function App() {
             <Canvas />
             <CodePreview />
           </div>
-          {rightPanelOpen && <PropertyPanel />}
+          {rightPanelOpen && <InspectorPanel />}
         </div>
         <ComponentTray />
         <StatusBar />
