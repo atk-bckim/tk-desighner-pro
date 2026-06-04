@@ -84,7 +84,7 @@ export function OutputDock({ records, onClear }: OutputDockProps) {
   const filteredRecords = useMemo(() => {
     if (activeTab === "validation") return records.filter((record) => record.kind === "validation");
     if (activeTab === "export") return records.filter((record) => record.kind === "export");
-    if (activeTab === "logs") return records.filter((record) => record.kind !== "validation");
+    if (activeTab === "logs") return records.filter((record) => record.kind === "log" || record.kind === "preview");
     return [];
   }, [activeTab, records]);
 
