@@ -65,14 +65,11 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentCode = activeEvent ? codeMap[activeEvent] ?? existingEvents[activeEvent] ?? "" : "";
+  const currentCodeRef = useRef(currentCode);
 
-  const handleCodeChange = useCallback(
-    (value: string) => {
-      if (!activeEvent) return;
-      setCodeMap((prev) => ({ ...prev, [activeEvent]: value }));
-    },
-    [activeEvent]
-  );
+  useEffect(() => {
+    currentCodeRef.current = currentCode;
+  }, [currentCode]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -89,10 +86,11 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
   // CodeMirror editor
   useEffect(() => {
     if (!editorContainerRef.current || !activeEvent) return;
+    const eventName = activeEvent;
     editorViewRef.current?.destroy();
 
     const state = EditorState.create({
-      doc: currentCode,
+      doc: currentCodeRef.current,
       extensions: [
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -112,7 +110,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
         oneDark,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
-            handleCodeChange(update.state.doc.toString());
+            setCodeMap((prev) => ({ ...prev, [eventName]: update.state.doc.toString() }));
           }
         }),
         EditorView.theme({
@@ -124,7 +122,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     });
     editorViewRef.current = new EditorView({ state, parent: editorContainerRef.current });
     return () => { editorViewRef.current?.destroy(); editorViewRef.current = null; };
-  }, [activeEvent, currentCode, handleCodeChange]);
+  }, [activeEvent, widgetId]);
 
   // Escape key to close modal
   useEffect(() => {
