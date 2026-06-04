@@ -5,6 +5,7 @@ import { showToast } from "./toastBus";
 import { VariablePanel } from "./VariablePanel";
 import { ResourcePanel } from "./ResourcePanel";
 import type { NonVisualType } from "../types/widgets";
+import { projectToApiPayload } from "../utils/projectPayload";
 
 export function Toolbar() {
   const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap, loadTemplate, zoom, setZoom, tabOrderMode, toggleTabOrderMode, addNonVisual } =
@@ -51,34 +52,11 @@ export function Toolbar() {
   const handlePreview = async () => {
     try {
       const project = exportProject();
+      const store = useDesignerStore.getState();
       const res = await fetch("/api/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: project.name,
-          canvas_width: project.canvasWidth,
-          canvas_height: project.canvasHeight,
-          tk_theme: useDesignerStore.getState().tkTheme,
-          widgets: project.widgets.map(w => ({
-            id: w.id, type: w.type, name: w.name, parent_id: w.parentId,
-            x: w.x, y: w.y, width: w.width, height: w.height, props: w.props,
-            bindings: w.bindings || {}, events: w.events || {},
-            layout_manager: w.layoutManager ?? "place",
-            grid_row: w.gridRow ?? null,
-            grid_col: w.gridCol ?? null,
-            grid_row_span: w.gridRowSpan ?? null,
-            grid_col_span: w.gridColSpan ?? null,
-            grid_sticky: w.gridSticky ?? null,
-            grid_pad_x: w.gridPadX ?? null,
-            grid_pad_y: w.gridPadY ?? null,
-          })),
-          menu_bar: project.menuBar,
-          root_bg: project.rootBg ?? "",
-          root_resizable: project.rootResizable ?? true,
-          variables: project.variables,
-          non_visuals: project.nonVisuals ?? [],
-          resources: (project.resources ?? []).map(r => ({ id: r.id, name: r.name, type: r.type, data_url: r.dataUrl })),
-        }),
+        body: JSON.stringify(projectToApiPayload(project, store.tkTheme)),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
@@ -98,34 +76,11 @@ export function Toolbar() {
   const handleExport = async () => {
     try {
       const project = exportProject();
+      const store = useDesignerStore.getState();
       const res = await fetch("/api/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: project.name,
-          canvas_width: project.canvasWidth,
-          canvas_height: project.canvasHeight,
-          tk_theme: useDesignerStore.getState().tkTheme,
-          widgets: project.widgets.map(w => ({
-            id: w.id, type: w.type, name: w.name, parent_id: w.parentId,
-            x: w.x, y: w.y, width: w.width, height: w.height, props: w.props,
-            bindings: w.bindings || {}, events: w.events || {},
-            layout_manager: w.layoutManager ?? "place",
-            grid_row: w.gridRow ?? null,
-            grid_col: w.gridCol ?? null,
-            grid_row_span: w.gridRowSpan ?? null,
-            grid_col_span: w.gridColSpan ?? null,
-            grid_sticky: w.gridSticky ?? null,
-            grid_pad_x: w.gridPadX ?? null,
-            grid_pad_y: w.gridPadY ?? null,
-          })),
-          menu_bar: project.menuBar,
-          root_bg: project.rootBg ?? "",
-          root_resizable: project.rootResizable ?? true,
-          variables: project.variables,
-          non_visuals: project.nonVisuals ?? [],
-          resources: (project.resources ?? []).map(r => ({ id: r.id, name: r.name, type: r.type, data_url: r.dataUrl })),
-        }),
+        body: JSON.stringify(projectToApiPayload(project, store.tkTheme)),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
