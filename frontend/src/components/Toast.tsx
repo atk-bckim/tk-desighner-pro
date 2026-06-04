@@ -1,41 +1,38 @@
 import { useEffect, useState } from "react";
+import { registerToastHandler, type ToastType } from "./toastBus";
 
 interface ToastItem {
   id: number;
   message: string;
-  type: "success" | "error" | "warning";
-}
-
-let toastId = 0;
-let addToastFn: ((message: string, type: ToastItem["type"]) => void) | null = null;
-
-export function showToast(message: string, type: ToastItem["type"] = "success") {
-  addToastFn?.(message, type);
+  type: ToastType;
 }
 
 export function ToastContainer() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   useEffect(() => {
-    addToastFn = (message, type) => {
-      const id = ++toastId;
-      setToasts(prev => [...prev, { id, message, type }]);
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
-    };
-    return () => { addToastFn = null; };
+    registerToastHandler((id, message, type) => {
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3400);
+    });
+    return () => registerToastHandler(null);
   }, []);
 
-  const colors = {
-    success: "bg-[#10b981] text-white",
-    error: "bg-[#ef4444] text-white",
-    warning: "bg-[#f59e0b] text-black",
+  const colors: Record<ToastType, string> = {
+    success: "border-emerald-400/40 bg-emerald-500/15 text-emerald-100",
+    error: "border-red-400/40 bg-red-500/15 text-red-100",
+    warning: "border-amber-400/40 bg-amber-500/15 text-amber-100",
   };
 
   return (
-    <div className="fixed bottom-8 right-4 z-[9999] flex flex-col gap-2">
-      {toasts.map(t => (
-        <div key={t.id} className={`${colors[t.type]} px-4 py-2 rounded shadow-lg text-xs font-medium animate-[fadeIn_0.2s_ease-out]`}>
-          {t.message}
+    <div className="fixed bottom-10 right-4 z-[9999] flex w-[320px] max-w-[calc(100vw-2rem)] flex-col gap-2">
+      {toasts.map((toast) => (
+        <div
+          key={toast.id}
+          className={`${colors[toast.type]} rounded-md border px-3 py-2 text-xs font-medium shadow-xl backdrop-blur-sm`}
+          role={toast.type === "error" ? "alert" : "status"}
+        >
+          {toast.message}
         </div>
       ))}
     </div>

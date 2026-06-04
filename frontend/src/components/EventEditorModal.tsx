@@ -64,6 +64,16 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
   const editorViewRef = useRef<EditorView | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const currentCode = activeEvent ? codeMap[activeEvent] ?? existingEvents[activeEvent] ?? "" : "";
+
+  const handleCodeChange = useCallback(
+    (value: string) => {
+      if (!activeEvent) return;
+      setCodeMap((prev) => ({ ...prev, [activeEvent]: value }));
+    },
+    [activeEvent]
+  );
+
   // Close dropdown on outside click
   useEffect(() => {
     if (!showAddDropdown) return;
@@ -114,7 +124,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     });
     editorViewRef.current = new EditorView({ state, parent: editorContainerRef.current });
     return () => { editorViewRef.current?.destroy(); editorViewRef.current = null; };
-  }, [activeEvent]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeEvent, currentCode, handleCodeChange]);
 
   // Escape key to close modal
   useEffect(() => {
@@ -126,16 +136,6 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
-
-  const currentCode = activeEvent ? codeMap[activeEvent] ?? existingEvents[activeEvent] ?? "" : "";
-
-  const handleCodeChange = useCallback(
-    (value: string) => {
-      if (!activeEvent) return;
-      setCodeMap((prev) => ({ ...prev, [activeEvent]: value }));
-    },
-    [activeEvent]
-  );
 
   const handleSave = useCallback(() => {
     if (!activeEvent) return;

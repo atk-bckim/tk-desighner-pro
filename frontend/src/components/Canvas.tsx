@@ -353,7 +353,7 @@ function WidgetRenderer({
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [widget.id, widget.x, widget.y, widget.locked, onSelect, onMove, onSetGuides, allWidgets, zoom],
+    [widget, onSelect, onMove, onSetGuides, allWidgets, zoom, onSnapshot],
   );
 
   const createResizeHandler = useCallback(
@@ -395,7 +395,7 @@ function WidgetRenderer({
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [widget.id, widget.width, widget.height, widget.x, widget.y, onResize, onMove, zoom],
+    [widget, onResize, onMove, zoom, onSnapshot],
   );
 
   const dynamicStyle = getWidgetDynamicStyle(widget);
@@ -583,10 +583,11 @@ export function Canvas() {
   const panningRef = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
 
   const rootWidgets = widgets.filter(w => w.parentId === null);
+  const isMarqueeActive = selRect !== null;
 
   // Marquee selection
   useEffect(() => {
-    if (!selRect) return;
+    if (!isMarqueeActive) return;
     const canvasEl = document.querySelector('[data-canvas="true"]');
     if (!canvasEl) return;
 
@@ -625,7 +626,7 @@ export function Canvas() {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
     };
-  }, [selectWidget]);
+  }, [isMarqueeActive, selectWidget]);
 
   const snapFn = (v: number) => snapEnabled ? Math.round(v / gridSize) * gridSize : v;
 

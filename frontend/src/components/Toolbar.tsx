@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDesignerStore } from "../store/designerStore";
 import { TEMPLATES } from "../templates/index";
-import { showToast } from "./Toast";
+import { showToast } from "./toastBus";
 import { VariablePanel } from "./VariablePanel";
 import { ResourcePanel } from "./ResourcePanel";
 import type { NonVisualType } from "../types/widgets";
