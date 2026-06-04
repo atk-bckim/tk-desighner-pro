@@ -1,22 +1,32 @@
 import { useDesignerStore } from "../store/designerStore";
 
 export function StatusBar() {
-  const { widgets, selectedIds, canvasWidth, canvasHeight, gridSize, snapEnabled, zoom } = useDesignerStore();
+  const { widgets, selectedIds, canvasWidth, canvasHeight, gridSize, snapEnabled, zoom, mousePos } = useDesignerStore();
   const selected = selectedIds.length === 1 ? widgets.find(w => w.id === selectedIds[0]) : null;
 
   return (
-    <div className="h-6 bg-gray-800 border-t border-gray-700 flex items-center px-3 text-xs text-gray-500 gap-4 shrink-0">
-      <span>{canvasWidth}x{canvasHeight}</span>
-      <span>Widgets: {widgets.length}</span>
+    <div className="h-6 bg-[#06b6d4] flex items-center px-3 text-[11px] text-white/90 gap-3 shrink-0 select-none">
+      <span className="font-medium">{canvasWidth}x{canvasHeight}</span>
+      <span className="text-white/60">|</span>
+      <span>{widgets.length} widgets</span>
+      {mousePos && (
+        <>
+          <span className="text-white/60">|</span>
+          <span>({Math.round(mousePos.x)}, {Math.round(mousePos.y)})</span>
+        </>
+      )}
       {selected && (
         <>
-          <span className="text-blue-400">{selected.type}</span>
+          <span className="text-white/60">|</span>
+          <span className="font-medium">{selected.type}</span>
           <span>({Math.round(selected.x)}, {Math.round(selected.y)})</span>
           <span>{Math.round(selected.width)}x{Math.round(selected.height)}</span>
         </>
       )}
-      <span className="ml-auto">Zoom: {(zoom * 100).toFixed(0)}%</span>
-      <span>Grid: {snapEnabled ? `${gridSize}px` : "off"}</span>
+      <div className="flex-1" />
+      <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
+      <span className="text-white/60">|</span>
+      <span>{snapEnabled ? `Grid: ${gridSize}px` : "Grid: off"}</span>
     </div>
   );
 }
