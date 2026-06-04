@@ -2,11 +2,10 @@ import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { useState, useEffect, useCallback } from "react";
 import { CommandBar } from "./components/CommandBar";
-import { Toolbox } from "./components/Toolbox";
+import { StudioRail } from "./components/StudioRail";
 import { Canvas } from "./components/Canvas";
 import { PropertyPanel } from "./components/PropertyPanel";
 import { CodePreview } from "./components/CodePreview";
-import { ObjectTree } from "./components/ObjectTree";
 import { StatusBar } from "./components/StatusBar";
 import { ComponentTray } from "./components/ComponentTray";
 import { ToastContainer } from "./components/Toast";
@@ -244,12 +243,7 @@ export default function App() {
           onToggleRightPanel={() => setRightPanelOpen((open) => !open)}
         />
         <div className="flex flex-1 overflow-hidden">
-          {leftPanelOpen && (
-            <>
-              <Toolbox />
-              <ObjectTree />
-            </>
-          )}
+          {leftPanelOpen && <StudioRail />}
           <div className="flex flex-1 flex-col overflow-hidden">
             <Canvas />
             <CodePreview />
