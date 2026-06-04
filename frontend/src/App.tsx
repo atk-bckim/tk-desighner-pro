@@ -5,7 +5,7 @@ import { CommandBar } from "./components/CommandBar";
 import { StudioRail } from "./components/StudioRail";
 import { Canvas } from "./components/Canvas";
 import { InspectorPanel } from "./components/InspectorPanel";
-import { CodePreview } from "./components/CodePreview";
+import { OutputDock } from "./components/OutputDock";
 import { StatusBar } from "./components/StatusBar";
 import { ComponentTray } from "./components/ComponentTray";
 import { ToastContainer } from "./components/Toast";
@@ -224,8 +224,6 @@ export default function App() {
     }
   };
 
-  void outputRecords;
-
   return (
     <DndContext
       onDragEnd={handleDragEnd}
@@ -246,7 +244,7 @@ export default function App() {
           {leftPanelOpen && <StudioRail />}
           <div className="flex flex-1 flex-col overflow-hidden">
             <Canvas />
-            <CodePreview />
+            <OutputDock records={outputRecords} onClear={() => setOutputRecords([])} />
           </div>
           {rightPanelOpen && <InspectorPanel />}
         </div>

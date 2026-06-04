@@ -1,6 +1,7 @@
 import { useDesignerStore } from "../store/designerStore";
 import type { NonVisualComponent, ProjectResource } from "../types/widgets";
 import { useState } from "react";
+import { StatusChip, TextButton } from "./ui";
 
 const TTK_TYPES = new Set(["Notebook", "Progressbar", "Combobox", "Treeview", "Sizegrip", "Separator"]);
 const TUPLE_PROPS = new Set(["values"]);
@@ -278,7 +279,7 @@ function generateCode(
   return lines.join("\n");
 }
 
-export function CodePreview() {
+export function CodePreview({ docked = false }: { docked?: boolean }) {
   const { widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals, resources } = useDesignerStore();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -327,6 +328,23 @@ export function CodePreview() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
+
+  if (docked) {
+    return (
+      <div className="flex h-full min-h-0 flex-col bg-[var(--td-panel)]">
+        <div className="flex h-8 shrink-0 items-center justify-between border-b border-[var(--td-border)] px-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-[11px] font-semibold text-[var(--td-text)]">Generated Python</span>
+            <StatusChip tone={widgets.length > 0 ? "accent" : "neutral"}>{widgets.length} widgets</StatusChip>
+          </div>
+          <TextButton onClick={handleCopy}>{copied ? "Copied" : "Copy"}</TextButton>
+        </div>
+        <pre className="min-h-0 flex-1 overflow-auto px-3 py-2 font-mono text-[11px] leading-5 text-emerald-300">
+          {code}
+        </pre>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#252536] border-t border-[#3c3c52] shrink-0">
