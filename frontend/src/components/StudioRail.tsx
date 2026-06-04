@@ -369,7 +369,8 @@ function LayersTab() {
     const draggedWidget = widgetById.get(widgetId);
     if (!draggedWidget) return false;
     if (widgetId === targetId) return false;
-    if (draggedWidget.parentId === targetId) return false;
+    const currentParentId = draggedWidget.parentId ?? null;
+    if (currentParentId === targetId) return false;
     if (targetId === null) return true;
 
     const target = widgetById.get(targetId);
