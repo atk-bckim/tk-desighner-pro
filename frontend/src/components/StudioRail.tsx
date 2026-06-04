@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { DragEvent } from "react";
+import type { DragEvent, KeyboardEvent } from "react";
 import { useDesignerStore } from "../store/designerStore";
 import { AssetIcon, ComponentIcon, LayersIcon, SearchIcon, VariableIcon, WidgetIcon } from "./icons";
 import { EmptyState, PanelHeader, TextButton, TextInput } from "./ui";
@@ -15,6 +15,8 @@ const STUDIO_TABS = [
 ] as const;
 
 type StudioTab = typeof STUDIO_TABS[number]["id"];
+type ChildrenByParent = Map<string | null, WidgetInstance[]>;
+type WidgetById = Map<string, WidgetInstance>;
 
 const WIDGET_GROUPS: { label: string; types: WidgetType[] }[] = [
   { label: "Container", types: ["Frame", "LabelFrame", "Notebook", "Toplevel"] },
@@ -39,11 +41,80 @@ function widgetMatchesSearch(widget: WidgetInstance, query: string): boolean {
   );
 }
 
-function subtreeMatchesSearch(widget: WidgetInstance, query: string, allWidgets: WidgetInstance[]): boolean {
-  if (widgetMatchesSearch(widget, query)) return true;
-  return allWidgets
-    .filter((candidate) => candidate.parentId === widget.id)
-    .some((child) => subtreeMatchesSearch(child, query, allWidgets));
+function buildLayerIndexes(widgets: WidgetInstance[]): { childrenByParent: ChildrenByParent; widgetById: WidgetById } {
+  const childrenByParent: ChildrenByParent = new Map();
+  const widgetById: WidgetById = new Map();
+
+  for (const widget of widgets) {
+    widgetById.set(widget.id, widget);
+  }
+
+  for (const widget of widgets) {
+    const parentId = widget.parentId ?? null;
+    const siblings = childrenByParent.get(parentId) ?? [];
+    siblings.push(widget);
+    childrenByParent.set(parentId, siblings);
+  }
+
+  return { childrenByParent, widgetById };
+}
+
+function buildSearchMatchSet(
+  widgets: WidgetInstance[],
+  query: string,
+  childrenByParent: ChildrenByParent,
+): Set<string> | null {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const matches = new Set<string>();
+  const memo = new Map<string, boolean>();
+  const visit = (widget: WidgetInstance, visited: Set<string>): boolean => {
+    if (visited.has(widget.id)) return false;
+    const cached = memo.get(widget.id);
+    if (cached !== undefined) return cached;
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(widget.id);
+
+    const children = childrenByParent.get(widget.id) ?? [];
+    const hasMatchingChild = children.some((child) => visit(child, nextVisited));
+    const selfMatches = widgetMatchesSearch(widget, normalized);
+
+    if (selfMatches || hasMatchingChild) {
+      matches.add(widget.id);
+      memo.set(widget.id, true);
+      return true;
+    }
+    memo.set(widget.id, false);
+    return false;
+  };
+
+  for (const widget of childrenByParent.get(null) ?? []) {
+    visit(widget, new Set());
+  }
+  for (const widget of widgets) {
+    visit(widget, new Set());
+  }
+
+  return matches;
+}
+
+function isDescendant(
+  sourceId: string,
+  candidateDescendantId: string,
+  childrenByParent: ChildrenByParent,
+  visited = new Set<string>(),
+): boolean {
+  if (visited.has(sourceId)) return false;
+  visited.add(sourceId);
+
+  for (const child of childrenByParent.get(sourceId) ?? []) {
+    if (child.id === candidateDescendantId) return true;
+    if (isDescendant(child.id, candidateDescendantId, childrenByParent, visited)) return true;
+  }
+
+  return false;
 }
 
 function WidgetPaletteItem({ type }: { type: WidgetType }) {
@@ -120,38 +191,79 @@ function WidgetsTab() {
 function LayerNode({
   widget,
   depth = 0,
-  searchQuery,
+  searchActive,
+  searchMatchIds,
+  childrenByParent,
+  selectedIds,
+  selectWidget,
   onDragStart,
   onDrop,
-  allWidgets,
+  ancestorIds,
 }: {
   widget: WidgetInstance;
   depth?: number;
-  searchQuery: string;
+  searchActive: boolean;
+  searchMatchIds: Set<string> | null;
+  childrenByParent: ChildrenByParent;
+  selectedIds: string[];
+  selectWidget: (id: string | null, multi?: boolean) => void;
   onDragStart: (event: DragEvent<HTMLDivElement>, id: string) => void;
   onDrop: (event: DragEvent<HTMLDivElement>, targetId: string | null) => void;
-  allWidgets: WidgetInstance[];
+  ancestorIds: Set<string>;
 }) {
-  const widgets = useDesignerStore((state) => state.widgets);
-  const selectedIds = useDesignerStore((state) => state.selectedIds);
-  const selectWidget = useDesignerStore((state) => state.selectWidget);
   const [expanded, setExpanded] = useState(true);
   const [dragOver, setDragOver] = useState(false);
-  const children = widgets.filter((candidate) => candidate.parentId === widget.id);
+  const childAncestorIds = new Set(ancestorIds);
+  childAncestorIds.add(widget.id);
+  const children = childrenByParent.get(widget.id) ?? [];
   const isSelected = selectedIds.includes(widget.id);
   const canContainChildren = isContainer(widget) || children.length > 0;
-  const visibleChildren = searchQuery
-    ? children.filter((child) => subtreeMatchesSearch(child, searchQuery, allWidgets))
-    : children;
+  const isExpanded = searchActive ? true : expanded;
+  const visibleChildren = (searchMatchIds
+    ? children.filter((child) => searchMatchIds.has(child.id))
+    : children
+  ).filter((child) => !childAncestorIds.has(child.id));
+  const nodeLabel = widget.name || String(widget.props.text ?? widget.type);
+  const toggleLabel = searchActive
+    ? `Search keeps ${nodeLabel} expanded`
+    : isExpanded
+      ? `Collapse ${nodeLabel}`
+      : `Expand ${nodeLabel}`;
+  const selectCurrentWidget = () => selectWidget(widget.id);
+  const setExpandedFromInput = (open: boolean) => {
+    if (!searchActive) setExpanded(open);
+  };
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectCurrentWidget();
+      return;
+    }
+    if (event.key === "ArrowRight" && canContainChildren) {
+      event.preventDefault();
+      setExpandedFromInput(true);
+      return;
+    }
+    if (event.key === "ArrowLeft" && canContainChildren) {
+      event.preventDefault();
+      setExpandedFromInput(false);
+    }
+  };
 
   return (
-    <div>
+    <div role="none">
       <div
+        role="treeitem"
+        tabIndex={0}
+        aria-level={depth + 2}
+        aria-selected={isSelected}
+        aria-expanded={canContainChildren ? isExpanded : undefined}
         className={`flex items-center gap-1 rounded-md py-1 pr-2 text-[11px] transition-colors ${
           isSelected ? "bg-[var(--td-accent-soft)] text-cyan-100" : "text-[var(--td-text-muted)] hover:bg-[var(--td-panel-soft)] hover:text-[var(--td-text)]"
         } ${dragOver ? "ring-1 ring-[var(--td-accent-border)]" : ""}`}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
-        onClick={() => selectWidget(widget.id)}
+        onClick={selectCurrentWidget}
+        onKeyDown={handleKeyDown}
         draggable
         onDragStart={(event) => onDragStart(event, widget.id)}
         onDragOver={(event) => {
@@ -171,34 +283,43 @@ function LayerNode({
         {canContainChildren ? (
           <button
             type="button"
+            tabIndex={-1}
             className="h-4 w-4 shrink-0 rounded text-[10px] text-[var(--td-text-subtle)] hover:bg-[var(--td-panel)] hover:text-[var(--td-text)]"
-            aria-label={expanded ? `Collapse ${widget.name}` : `Expand ${widget.name}`}
-            title={expanded ? `Collapse ${widget.name}` : `Expand ${widget.name}`}
+            aria-label={toggleLabel}
+            title={toggleLabel}
             onClick={(event) => {
               event.stopPropagation();
-              setExpanded((open) => !open);
+              if (!searchActive) setExpanded((open) => !open);
             }}
           >
-            {expanded ? "v" : ">"}
+            {isExpanded ? "v" : ">"}
           </button>
         ) : (
           <span className="h-4 w-4 shrink-0" />
         )}
-        <span className="min-w-0 flex-1 truncate">{widget.name || String(widget.props.text ?? widget.type)}</span>
+        <span className="min-w-0 flex-1 truncate">{nodeLabel}</span>
         {widget.locked && <span className="text-[9px] uppercase text-amber-300">Locked</span>}
         <span className="max-w-16 truncate text-right text-[10px] text-[var(--td-text-subtle)]">{widget.type}</span>
       </div>
-      {expanded && visibleChildren.map((child) => (
-        <LayerNode
-          key={child.id}
-          widget={child}
-          depth={depth + 1}
-          searchQuery={searchQuery}
-          onDragStart={onDragStart}
-          onDrop={onDrop}
-          allWidgets={allWidgets}
-        />
-      ))}
+      {isExpanded && visibleChildren.length > 0 && (
+        <div role="group">
+          {visibleChildren.map((child) => (
+            <LayerNode
+              key={child.id}
+              widget={child}
+              depth={depth + 1}
+              searchActive={searchActive}
+              searchMatchIds={searchMatchIds}
+              childrenByParent={childrenByParent}
+              selectedIds={selectedIds}
+              selectWidget={selectWidget}
+              onDragStart={onDragStart}
+              onDrop={onDrop}
+              ancestorIds={childAncestorIds}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -216,21 +337,45 @@ function LayersTab() {
   const [rootExpanded, setRootExpanded] = useState(true);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const isRootSelected = selectedIds.length === 0;
+  const searchActive = searchQuery.trim().length > 0;
+  const { childrenByParent, widgetById } = useMemo(() => buildLayerIndexes(widgets), [widgets]);
+  const searchMatchIds = useMemo(
+    () => buildSearchMatchSet(widgets, searchQuery, childrenByParent),
+    [widgets, searchQuery, childrenByParent],
+  );
 
   const rootChildren = useMemo(
-    () => widgets.filter((widget) => widget.parentId === null && widget.type !== "Toplevel"),
-    [widgets],
+    () => (childrenByParent.get(null) ?? []).filter((widget) => widget.type !== "Toplevel"),
+    [childrenByParent],
   );
   const toplevels = useMemo(
-    () => widgets.filter((widget) => widget.parentId === null && widget.type === "Toplevel"),
-    [widgets],
+    () => (childrenByParent.get(null) ?? []).filter((widget) => widget.type === "Toplevel"),
+    [childrenByParent],
   );
-  const filteredRootChildren = searchQuery
-    ? rootChildren.filter((widget) => subtreeMatchesSearch(widget, searchQuery, widgets))
+  const filteredRootChildren = searchMatchIds
+    ? rootChildren.filter((widget) => searchMatchIds.has(widget.id))
     : rootChildren;
-  const filteredToplevels = searchQuery
-    ? toplevels.filter((widget) => subtreeMatchesSearch(widget, searchQuery, widgets))
+  const filteredToplevels = searchMatchIds
+    ? toplevels.filter((widget) => searchMatchIds.has(widget.id))
     : toplevels;
+  const rootCanExpand = rootChildren.length > 0;
+  const isRootExpanded = searchActive ? true : rootExpanded;
+  const rootToggleLabel = searchActive
+    ? "Search keeps project root expanded"
+    : isRootExpanded
+      ? "Collapse project root"
+      : "Expand project root";
+  const canReparent = (widgetId: string, targetId: string | null): boolean => {
+    const draggedWidget = widgetById.get(widgetId);
+    if (!draggedWidget) return false;
+    if (widgetId === targetId) return false;
+    if (draggedWidget.parentId === targetId) return false;
+    if (targetId === null) return true;
+
+    const target = widgetById.get(targetId);
+    if (!target || !isContainer(target)) return false;
+    return !isDescendant(widgetId, targetId, childrenByParent);
+  };
 
   const handleDragStart = (event: DragEvent<HTMLDivElement>, id: string) => {
     setDraggedId(id);
@@ -241,11 +386,7 @@ function LayersTab() {
   const handleDropOnWidget = (_event: DragEvent<HTMLDivElement>, targetId: string | null) => {
     const currentDraggedId = draggedId;
     setDraggedId(null);
-    if (!currentDraggedId || currentDraggedId === targetId) return;
-    if (targetId !== null) {
-      const target = widgets.find((widget) => widget.id === targetId);
-      if (!target || !isContainer(target)) return;
-    }
+    if (!currentDraggedId || !canReparent(currentDraggedId, targetId)) return;
     snapshot();
     reparentWidget(currentDraggedId, targetId);
   };
@@ -255,9 +396,25 @@ function LayersTab() {
     event.stopPropagation();
     const currentDraggedId = draggedId;
     setDraggedId(null);
-    if (!currentDraggedId) return;
+    if (!currentDraggedId || !canReparent(currentDraggedId, null)) return;
     snapshot();
     reparentWidget(currentDraggedId, null);
+  };
+  const handleRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectWidget(null);
+      return;
+    }
+    if (event.key === "ArrowRight" && rootCanExpand) {
+      event.preventDefault();
+      if (!searchActive) setRootExpanded(true);
+      return;
+    }
+    if (event.key === "ArrowLeft" && rootCanExpand) {
+      event.preventDefault();
+      if (!searchActive) setRootExpanded(false);
+    }
   };
 
   return (
@@ -275,55 +432,82 @@ function LayersTab() {
           />
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-2 py-2" onDragOver={(event) => event.preventDefault()}>
+      <div
+        role="tree"
+        aria-label="Project layers"
+        className="flex-1 overflow-y-auto px-2 py-2"
+        onDragOver={(event) => event.preventDefault()}
+      >
         <div
+          role="treeitem"
+          tabIndex={0}
+          aria-level={1}
+          aria-selected={isRootSelected}
+          aria-expanded={rootCanExpand ? isRootExpanded : undefined}
           className={`mb-1 flex items-center gap-1 rounded-md py-1 pr-2 text-[11px] transition-colors ${
             isRootSelected ? "bg-[var(--td-accent-soft)] text-cyan-100" : "text-[var(--td-text-muted)] hover:bg-[var(--td-panel-soft)] hover:text-[var(--td-text)]"
           }`}
           style={{ paddingLeft: "8px" }}
           onClick={() => selectWidget(null)}
+          onKeyDown={handleRootKeyDown}
           onDrop={handleDropOnRoot}
         >
           <button
             type="button"
+            tabIndex={-1}
             className="h-4 w-4 shrink-0 rounded text-[10px] text-[var(--td-text-subtle)] hover:bg-[var(--td-panel)] hover:text-[var(--td-text)]"
-            aria-label={rootExpanded ? "Collapse project root" : "Expand project root"}
-            title={rootExpanded ? "Collapse project root" : "Expand project root"}
+            aria-label={rootToggleLabel}
+            title={rootToggleLabel}
             onClick={(event) => {
               event.stopPropagation();
-              setRootExpanded((open) => !open);
+              if (!searchActive) setRootExpanded((open) => !open);
             }}
           >
-            {rootExpanded ? "v" : ">"}
+            {isRootExpanded ? "v" : ">"}
           </button>
           <span className="min-w-0 flex-1 truncate font-medium">{projectName}</span>
           <span className="text-[10px] text-[var(--td-text-subtle)]">{canvasWidth}x{canvasHeight}</span>
         </div>
 
-        {rootExpanded && filteredRootChildren.map((widget) => (
-          <LayerNode
-            key={widget.id}
-            widget={widget}
-            searchQuery={searchQuery}
-            onDragStart={handleDragStart}
-            onDrop={handleDropOnWidget}
-            allWidgets={widgets}
-          />
-        ))}
+        {isRootExpanded && filteredRootChildren.length > 0 && (
+          <div role="group">
+            {filteredRootChildren.map((widget) => (
+              <LayerNode
+                key={widget.id}
+                widget={widget}
+                searchActive={searchActive}
+                searchMatchIds={searchMatchIds}
+                childrenByParent={childrenByParent}
+                selectedIds={selectedIds}
+                selectWidget={selectWidget}
+                onDragStart={handleDragStart}
+                onDrop={handleDropOnWidget}
+                ancestorIds={new Set()}
+              />
+            ))}
+          </div>
+        )}
 
         {filteredToplevels.map((widget) => (
           <LayerNode
             key={widget.id}
             widget={widget}
-            searchQuery={searchQuery}
+            searchActive={searchActive}
+            searchMatchIds={searchMatchIds}
+            childrenByParent={childrenByParent}
+            selectedIds={selectedIds}
+            selectWidget={selectWidget}
             onDragStart={handleDragStart}
             onDrop={handleDropOnWidget}
-            allWidgets={widgets}
+            ancestorIds={new Set()}
           />
         ))}
 
         {widgets.length === 0 && !searchQuery && (
           <EmptyState title="No Layers" body="Drop widgets onto the canvas to populate the project tree." />
+        )}
+        {widgets.length > 0 && searchActive && filteredRootChildren.length === 0 && filteredToplevels.length === 0 && (
+          <EmptyState title="No Layers" body="No layer names, types, or text properties match this search." />
         )}
       </div>
     </>
