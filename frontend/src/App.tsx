@@ -240,9 +240,9 @@ export default function App() {
           onToggleLeftPanel={() => setLeftPanelOpen((open) => !open)}
           onToggleRightPanel={() => setRightPanelOpen((open) => !open)}
         />
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-x-auto overflow-y-hidden">
           {leftPanelOpen && <StudioRail />}
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex min-w-[720px] flex-1 flex-col overflow-hidden">
             <Canvas />
             <OutputDock records={outputRecords} onClear={() => setOutputRecords([])} />
           </div>

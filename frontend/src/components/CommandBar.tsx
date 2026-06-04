@@ -56,7 +56,8 @@ export function CommandBar({
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[var(--td-border)] bg-[var(--td-panel)] px-3 shadow-[var(--td-shadow-panel)]">
+      <header className="h-12 shrink-0 border-b border-[var(--td-border)] bg-[var(--td-panel)] shadow-[var(--td-shadow-panel)] max-lg:overflow-x-auto lg:overflow-visible">
+        <div className="flex h-full min-w-max items-center gap-2 px-3">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--td-accent-border)] bg-[var(--td-accent-soft)] text-[11px] font-bold text-cyan-100">TD</div>
           <div className="min-w-0">
@@ -137,6 +138,7 @@ export function CommandBar({
         <TextButton variant="primary" onClick={previewProject}><PlayIcon className="h-4 w-4" />Preview</TextButton>
         <TextButton variant="warning" onClick={validateProject}><CheckIcon className="h-4 w-4" />Validate</TextButton>
         <TextButton variant="success" onClick={exportPython}><ExportIcon className="h-4 w-4" />Export</TextButton>
+        </div>
       </header>
       {varPanelOpen && <VariablePanel onClose={() => setVarPanelOpen(false)} />}
       {resPanelOpen && <ResourcePanel onClose={() => setResPanelOpen(false)} />}
