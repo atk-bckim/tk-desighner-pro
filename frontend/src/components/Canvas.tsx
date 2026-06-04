@@ -671,7 +671,7 @@ export function Canvas() {
   return (
     <div
       ref={scrollRef}
-      className="flex-1 overflow-auto bg-[radial-gradient(circle_at_50%_0%,rgba(24,198,230,0.08),transparent_32%),var(--td-canvas-surround)] p-5"
+      className="flex-1 overflow-auto bg-[var(--td-canvas-surround)] [background-image:radial-gradient(circle_at_50%_0%,rgba(24,198,230,0.08),transparent_32%)] p-5"
       style={{ scrollbarWidth: "thin", scrollbarColor: "#06b6d440 transparent" }}
       onMouseDown={(e) => {
         if (e.button === 1) {
