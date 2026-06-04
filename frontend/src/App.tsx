@@ -1,7 +1,7 @@
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { useState, useEffect } from "react";
-import { Toolbar } from "./components/Toolbar";
+import { useState, useEffect, useCallback } from "react";
+import { CommandBar } from "./components/CommandBar";
 import { Toolbox } from "./components/Toolbox";
 import { Canvas } from "./components/Canvas";
 import { PropertyPanel } from "./components/PropertyPanel";
@@ -12,6 +12,7 @@ import { ComponentTray } from "./components/ComponentTray";
 import { ToastContainer } from "./components/Toast";
 import { useDesignerStore } from "./store/designerStore";
 import type { WidgetType } from "./types/widgets";
+import type { OutputRecord } from "./types/output";
 import { getAbsolutePosition } from "./utils/position";
 
 export default function App() {
@@ -19,6 +20,17 @@ export default function App() {
   const [draggingType, setDraggingType] = useState<WidgetType | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [outputRecords, setOutputRecords] = useState<OutputRecord[]>([]);
+  const addOutput = useCallback((record: Omit<OutputRecord, "id" | "createdAt">) => {
+    setOutputRecords((prev) => [
+      {
+        ...record,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        createdAt: Date.now(),
+      },
+      ...prev,
+    ].slice(0, 80));
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -213,6 +225,8 @@ export default function App() {
     }
   };
 
+  void outputRecords;
+
   return (
     <DndContext
       onDragEnd={handleDragEnd}
@@ -222,16 +236,14 @@ export default function App() {
       }}
     >
       <div className="h-screen flex flex-col bg-[#1e1e2e] text-[#d4d4e8]">
-        <Toolbar />
+        <CommandBar
+          addOutput={addOutput}
+          leftPanelOpen={leftPanelOpen}
+          rightPanelOpen={rightPanelOpen}
+          onToggleLeftPanel={() => setLeftPanelOpen((open) => !open)}
+          onToggleRightPanel={() => setRightPanelOpen((open) => !open)}
+        />
         <div className="flex flex-1 overflow-hidden">
-          <button
-            onClick={() => setLeftPanelOpen(!leftPanelOpen)}
-            className="w-5 bg-[#252536] border-r border-[#3c3c52] flex items-center justify-center hover:bg-[#363650] transition-colors shrink-0"
-            aria-label={leftPanelOpen ? "Collapse left panel" : "Expand left panel"}
-            title={leftPanelOpen ? "Collapse left" : "Expand left"}
-          >
-            <span className="text-[10px] text-[#8888a8]">{leftPanelOpen ? "◂" : "▸"}</span>
-          </button>
           {leftPanelOpen && (
             <>
               <Toolbox />
@@ -243,14 +255,6 @@ export default function App() {
             <CodePreview />
           </div>
           {rightPanelOpen && <PropertyPanel />}
-          <button
-            onClick={() => setRightPanelOpen(!rightPanelOpen)}
-            className="w-5 bg-[#252536] border-l border-[#3c3c52] flex items-center justify-center hover:bg-[#363650] transition-colors shrink-0"
-            aria-label={rightPanelOpen ? "Collapse right panel" : "Expand right panel"}
-            title={rightPanelOpen ? "Collapse right" : "Expand right"}
-          >
-            <span className="text-[10px] text-[#8888a8]">{rightPanelOpen ? "▸" : "◂"}</span>
-          </button>
         </div>
         <ComponentTray />
         <StatusBar />
