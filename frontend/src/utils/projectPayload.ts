@@ -34,7 +34,12 @@ export function projectToApiPayload(project: Project, tkTheme: string) {
     menu_bar: project.menuBar,
     root_bg: project.rootBg ?? "",
     root_resizable: project.rootResizable ?? true,
-    variables: project.variables ?? [],
+    variables: (project.variables ?? []).map((variable) => ({
+      id: variable.id,
+      name: variable.name,
+      var_type: variable.varType,
+      default_value: variable.defaultValue,
+    })),
     non_visuals: project.nonVisuals ?? [],
     resources: (project.resources ?? []).map((resource) => ({
       id: resource.id,
