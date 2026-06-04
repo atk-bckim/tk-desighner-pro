@@ -2,9 +2,15 @@ import type { SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
-function IconBase({ children, ...props }: IconProps) {
+function IconBase({ children, className, ...props }: IconProps) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      className={`h-4 w-4 shrink-0 ${className ?? ""}`}
+      {...props}
+    >
       {children}
     </svg>
   );

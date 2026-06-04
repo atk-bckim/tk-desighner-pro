@@ -4,10 +4,12 @@ export function IconButton({
   label,
   className = "",
   children,
+  type = "button",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; children: ReactNode }) {
   return (
     <button
+      type={type}
       aria-label={label}
       title={label}
       className={`inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-[var(--td-text-muted)] transition-colors hover:border-[var(--td-border-strong)] hover:bg-[var(--td-panel-soft)] hover:text-[var(--td-text)] disabled:opacity-35 ${className}`}
@@ -21,6 +23,7 @@ export function IconButton({
 export function TextButton({
   variant = "ghost",
   className = "",
+  type = "button",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "ghost" | "primary" | "success" | "warning" | "danger" }) {
   const variants = {
@@ -30,7 +33,7 @@ export function TextButton({
     warning: "border-amber-400/40 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25",
     danger: "border-red-400/40 bg-red-500/15 text-red-100 hover:bg-red-500/25",
   };
-  return <button className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors disabled:opacity-35 ${variants[variant]} ${className}`} {...props} />;
+  return <button type={type} className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors disabled:opacity-35 ${variants[variant]} ${className}`} {...props} />;
 }
 
 export function PanelHeader({ title, detail, actions }: { title: string; detail?: string; actions?: ReactNode }) {
@@ -63,12 +66,12 @@ export function FieldLabel({ label, children }: { label: string; children: React
   );
 }
 
-export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className="h-7 w-full rounded-md border border-[var(--td-border)] bg-[var(--td-bg)] px-2 text-[11px] text-[var(--td-text)] placeholder:text-[var(--td-text-subtle)] focus:border-[var(--td-accent)] focus:outline-none" {...props} />;
+export function TextInput({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={`h-7 w-full rounded-md border border-[var(--td-border)] bg-[var(--td-bg)] px-2 text-[11px] text-[var(--td-text)] placeholder:text-[var(--td-text-subtle)] focus:border-[var(--td-accent)] ${className}`} {...props} />;
 }
 
-export function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className="h-7 w-full rounded-md border border-[var(--td-border)] bg-[var(--td-bg)] px-2 text-[11px] text-[var(--td-text)] focus:border-[var(--td-accent)] focus:outline-none" {...props} />;
+export function SelectInput({ className = "", ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={`h-7 w-full rounded-md border border-[var(--td-border)] bg-[var(--td-bg)] px-2 text-[11px] text-[var(--td-text)] focus:border-[var(--td-accent)] ${className}`} {...props} />;
 }
 
 export function StatusChip({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "accent" | "success" | "warning" | "danger" }) {
