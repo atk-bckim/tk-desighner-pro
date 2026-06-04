@@ -77,7 +77,10 @@ export function useProjectCommands(addOutput: AddOutput) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(projectToApiPayload(project, store.tkTheme)),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.detail || `HTTP ${response.status}`);
+      }
       const errors = Array.isArray(data.errors) ? data.errors : [];
       addRecord({
         kind: "validation",
