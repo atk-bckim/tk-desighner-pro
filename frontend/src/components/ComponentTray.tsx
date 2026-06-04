@@ -154,7 +154,7 @@ export function ComponentTray() {
               type="button"
               onClick={() => removeNonVisual(nv.id)}
               aria-label={`Remove ${nv.name}`}
-              className="px-1.5 py-0.5 text-[10px] text-[var(--td-text-muted)] opacity-0 transition-colors hover:bg-red-500/15 hover:text-[var(--td-danger)] group-hover:opacity-100"
+              className="px-1.5 py-0.5 text-[10px] text-[var(--td-text-muted)] opacity-0 transition-colors hover:bg-red-500/15 hover:text-[var(--td-danger)] focus-visible:opacity-100 group-hover:opacity-100"
             >
               Remove
             </button>
