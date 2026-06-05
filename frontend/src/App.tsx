@@ -13,6 +13,7 @@ import { useDesignerStore } from "./store/designerStore";
 import type { WidgetType } from "./types/widgets";
 import type { OutputRecord } from "./types/output";
 import { getAbsolutePosition } from "./utils/position";
+import { useAutosave } from "./hooks/useAutosave";
 
 export default function App() {
   const addWidget = useDesignerStore((s) => s.addWidget);
@@ -20,6 +21,7 @@ export default function App() {
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [outputRecords, setOutputRecords] = useState<OutputRecord[]>([]);
+  useAutosave();
   const addOutput = useCallback((record: Omit<OutputRecord, "id" | "createdAt">) => {
     setOutputRecords((prev) => [
       {
@@ -33,6 +35,9 @@ export default function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (document.querySelector('[role="dialog"], [data-modal-root="true"]')) return;
+      if (target?.closest('[role="dialog"], [data-modal-root="true"]')) return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       const store = useDesignerStore.getState();
@@ -140,36 +145,6 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const store = useDesignerStore.getState();
-      const data = {
-        name: store.projectName,
-        canvasWidth: store.canvasWidth,
-        canvasHeight: store.canvasHeight,
-        widgets: store.widgets,
-        tkTheme: store.tkTheme,
-        menuBar: store.menuBar,
-        rootBg: store.rootBg,
-        rootResizable: store.rootResizable,
-      };
-      localStorage.setItem("tk-designer-autosave", JSON.stringify(data));
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("tk-designer-autosave");
-    if (saved) {
-      try {
-        const project = JSON.parse(saved);
-        if (project.widgets?.length > 0) {
-          useDesignerStore.getState().loadProject(project);
-        }
-      } catch { /* ignore */ }
-    }
   }, []);
 
   useEffect(() => {

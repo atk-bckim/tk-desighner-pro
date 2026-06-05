@@ -2,14 +2,21 @@ import { useDesignerStore } from "../store/designerStore";
 import { StatusChip } from "./ui";
 
 export function StatusBar() {
-  const { widgets, selectedIds, canvasWidth, canvasHeight, gridSize, snapEnabled, zoom, mousePos } = useDesignerStore();
-  const selected = selectedIds.length === 1 ? widgets.find(w => w.id === selectedIds[0]) : null;
+  const canvasWidth = useDesignerStore((state) => state.canvasWidth);
+  const canvasHeight = useDesignerStore((state) => state.canvasHeight);
+  const widgetCount = useDesignerStore((state) => state.widgets.length);
+  const selectedId = useDesignerStore((state) => state.selectedIds.length === 1 ? state.selectedIds[0] : null);
+  const selected = useDesignerStore((state) => selectedId ? state.widgets.find(w => w.id === selectedId) ?? null : null);
+  const gridSize = useDesignerStore((state) => state.gridSize);
+  const snapEnabled = useDesignerStore((state) => state.snapEnabled);
+  const zoom = useDesignerStore((state) => state.zoom);
+  const mousePos = useDesignerStore((state) => state.mousePos);
 
   return (
     <div className="flex h-7 shrink-0 select-none items-center gap-3 border-t border-[var(--td-border)] bg-[var(--td-bg)] px-3 font-mono text-[10px] text-[var(--td-text-muted)]">
       <span className="font-medium text-[var(--td-text)]">{canvasWidth}x{canvasHeight}</span>
       <span className="text-[var(--td-text-subtle)]">|</span>
-      <span>{widgets.length} widgets</span>
+      <span>{widgetCount} widgets</span>
       {mousePos && (
         <>
           <span className="text-[var(--td-text-subtle)]">|</span>

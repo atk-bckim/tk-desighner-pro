@@ -5,8 +5,12 @@ import threading
 import sys
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
+
+from app.models.api import ValidateResponse
 from app.models.project import Project
-from app.codegen.tkinter_gen import generate_tkinter_code
+from app.services.codegen_pipeline import run_codegen_pipeline
+from app.services.project_validation import diagnostic_error_messages
 
 router = APIRouter()
 
@@ -20,7 +24,16 @@ except ImportError:
 
 @router.post("/preview")
 def preview(project: Project):
-    code = generate_tkinter_code(project)
+    pipeline_result = run_codegen_pipeline(project)
+    if not pipeline_result.valid:
+        response = ValidateResponse(
+            valid=False,
+            diagnostics=pipeline_result.diagnostics,
+            errors=diagnostic_error_messages(pipeline_result.diagnostics),
+        )
+        return JSONResponse(status_code=422, content=response.model_dump())
+
+    code = pipeline_result.code
 
     if not _TKINTER_AVAILABLE:
         return {
@@ -37,14 +50,14 @@ def preview(project: Project):
         tmp_path = f.name
 
     try:
-        result = subprocess.run(
+        completed_process = subprocess.run(
             [sys.executable, tmp_path],
             capture_output=True,
             text=True,
             timeout=10,
         )
-        if result.returncode != 0:
-            error_msg = result.stderr.strip() or "Unknown error"
+        if completed_process.returncode != 0:
+            error_msg = completed_process.stderr.strip() or "Unknown error"
             os.unlink(tmp_path)
             raise HTTPException(status_code=400, detail=error_msg)
     except subprocess.TimeoutExpired:

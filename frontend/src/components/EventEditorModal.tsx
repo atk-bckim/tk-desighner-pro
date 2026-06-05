@@ -1,12 +1,8 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { lazy, Suspense, useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useDesignerStore } from "../store/designerStore";
 import { WIDGET_EVENTS, GENERIC_EVENTS } from "../utils/widgetDefaults";
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine, drawSelection, rectangularSelection, crosshairCursor, highlightSpecialChars } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
-import { python } from "@codemirror/lang-python";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { syntaxHighlighting, defaultHighlightStyle, foldGutter, indentOnInput, bracketMatching, foldKeymap } from "@codemirror/language";
+
+const PythonCodeEditor = lazy(() => import("./PythonCodeEditor"));
 
 interface EventEditorModalProps {
   widgetId: string;
@@ -35,20 +31,8 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
   const { snapshot, updateWidgetEvent, removeWidgetEvent } = useDesignerStore();
 
   const existingEvents = useMemo(() => widget?.events ?? {}, [widget?.events]);
-
-  const allEvents = useMemo(
-    () => (widget ? buildAllEvents(widget.type, existingEvents) : []),
-    [widget, existingEvents]
-  );
-
-  // Which generic events can still be added (not already present)
-  const addableGenericEvents = useMemo(
-    () => GENERIC_EVENTS.filter((ge) => !allEvents.some((e) => e.event === ge.event)),
-    [allEvents]
-  );
-
   const [activeEvent, setActiveEvent] = useState<string | null>(() =>
-    allEvents.length > 0 ? allEvents[0].event : null
+    widget ? buildAllEvents(widget.type, widget.events ?? {})[0]?.event ?? null : null
   );
   const [codeMap, setCodeMap] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {};
@@ -60,16 +44,25 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     return map;
   });
   const [showAddDropdown, setShowAddDropdown] = useState(false);
-  const editorContainerRef = useRef<HTMLDivElement>(null);
-  const editorViewRef = useRef<EditorView | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const codeMapRef = useRef(codeMap);
+
+  const allEvents = useMemo(
+    () => (widget ? buildAllEvents(widget.type, codeMap) : []),
+    [widget, codeMap]
+  );
+
+  // Which generic events can still be added (not already present)
+  const addableGenericEvents = useMemo(
+    () => GENERIC_EVENTS.filter((ge) => !allEvents.some((e) => e.event === ge.event)),
+    [allEvents]
+  );
 
   const currentCode = activeEvent ? codeMap[activeEvent] ?? existingEvents[activeEvent] ?? "" : "";
-  const currentCodeRef = useRef(currentCode);
 
   useEffect(() => {
-    currentCodeRef.current = currentCode;
-  }, [currentCode]);
+    codeMapRef.current = codeMap;
+  }, [codeMap]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -82,47 +75,6 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showAddDropdown]);
-
-  // CodeMirror editor
-  useEffect(() => {
-    if (!editorContainerRef.current || !activeEvent) return;
-    const eventName = activeEvent;
-    editorViewRef.current?.destroy();
-
-    const state = EditorState.create({
-      doc: currentCodeRef.current,
-      extensions: [
-        lineNumbers(),
-        highlightActiveLineGutter(),
-        highlightSpecialChars(),
-        history(),
-        foldGutter(),
-        drawSelection(),
-        EditorState.allowMultipleSelections.of(true),
-        indentOnInput(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        bracketMatching(),
-        rectangularSelection(),
-        crosshairCursor(),
-        highlightActiveLine(),
-        keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),
-        python(),
-        oneDark,
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            setCodeMap((prev) => ({ ...prev, [eventName]: update.state.doc.toString() }));
-          }
-        }),
-        EditorView.theme({
-          "&": { fontSize: "12px", height: "100%" },
-          ".cm-scroller": { overflow: "auto" },
-          ".cm-content": { padding: "4px 0" },
-        }),
-      ],
-    });
-    editorViewRef.current = new EditorView({ state, parent: editorContainerRef.current });
-    return () => { editorViewRef.current?.destroy(); editorViewRef.current = null; };
-  }, [activeEvent, widgetId]);
 
   // Escape key to close modal
   useEffect(() => {
@@ -137,10 +89,21 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
 
   const handleSave = useCallback(() => {
     if (!activeEvent) return;
-    const code = codeMap[activeEvent] ?? "";
+    const code = codeMapRef.current[activeEvent] ?? existingEvents[activeEvent] ?? "";
+    if (code === (existingEvents[activeEvent] ?? "")) return;
     snapshot();
     updateWidgetEvent(widgetId, activeEvent, code);
-  }, [activeEvent, codeMap, widgetId, snapshot, updateWidgetEvent]);
+  }, [activeEvent, existingEvents, widgetId, snapshot, updateWidgetEvent]);
+
+  const handleCodeChange = useCallback((code: string) => {
+    if (!activeEvent) return;
+    setCodeMap((prev) => {
+      if (prev[activeEvent] === code) return prev;
+      const next = { ...prev, [activeEvent]: code };
+      codeMapRef.current = next;
+      return next;
+    });
+  }, [activeEvent]);
 
   const handleDelete = useCallback(() => {
     if (!activeEvent) return;
@@ -149,6 +112,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
     setCodeMap((prev) => {
       const next = { ...prev };
       delete next[activeEvent];
+      codeMapRef.current = next;
       return next;
     });
     // Switch to another tab if available
@@ -159,7 +123,11 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
   const handleAddGenericEvent = useCallback(
     (event: string) => {
       setShowAddDropdown(false);
-      setCodeMap((prev) => ({ ...prev, [event]: "" }));
+      setCodeMap((prev) => {
+        const next = { ...prev, [event]: "" };
+        codeMapRef.current = next;
+        return next;
+      });
       setActiveEvent(event);
     },
     []
@@ -172,6 +140,8 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
         className="flex max-h-[85vh] w-[680px] flex-col rounded-lg border border-[var(--td-border)] bg-[var(--td-panel)] shadow-[var(--td-shadow-panel)]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -202,6 +172,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
               return (
                 <button
                   key={ev.event}
+                  type="button"
                   onClick={() => setActiveEvent(ev.event)}
                   className={`text-sm px-5 py-2.5 rounded transition-colors whitespace-nowrap ${
                     isActive
@@ -219,7 +190,11 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
             {addableGenericEvents.length > 0 && (
               <div className="relative ml-1" ref={dropdownRef}>
                 <button
+                  type="button"
                   onClick={() => setShowAddDropdown(!showAddDropdown)}
+                  aria-expanded={showAddDropdown}
+                  aria-haspopup="menu"
+                  aria-label="Add event"
                   className="rounded px-2 py-1 text-xs text-cyan-100 transition-colors hover:bg-[var(--td-panel-soft)]"
                 >
                   +
@@ -229,6 +204,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
                     {addableGenericEvents.map((ge) => (
                       <button
                         key={ge.event}
+                        type="button"
                         onClick={() => handleAddGenericEvent(ge.event)}
                         className="block w-full px-3 py-1.5 text-left text-[10px] text-[var(--td-text)] transition-colors hover:bg-[var(--td-accent-soft)]"
                       >
@@ -247,7 +223,10 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
             {addableGenericEvents.length > 0 && (
               <div className="relative" ref={dropdownRef}>
                 <button
+                  type="button"
                   onClick={() => setShowAddDropdown(!showAddDropdown)}
+                  aria-expanded={showAddDropdown}
+                  aria-haspopup="menu"
                   className="rounded border border-[var(--td-border)] bg-[var(--td-panel-raised)] px-2 py-0.5 text-[10px] text-cyan-100 transition-colors hover:border-[var(--td-accent-border)] hover:bg-[var(--td-panel-soft)]"
                 >
                   + Add Event
@@ -257,6 +236,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
                     {addableGenericEvents.map((ge) => (
                       <button
                         key={ge.event}
+                        type="button"
                         onClick={() => handleAddGenericEvent(ge.event)}
                         className="block w-full px-3 py-1.5 text-left text-[10px] text-[var(--td-text)] transition-colors hover:bg-[var(--td-accent-soft)]"
                       >
@@ -281,7 +261,22 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
               </p>
             </div>
             <div className="mx-4 mb-1 flex min-h-[240px] flex-1 overflow-hidden rounded border border-[var(--td-border)] bg-[var(--td-bg)]">
-              <div ref={editorContainerRef} className="flex-1 overflow-hidden" />
+              <Suspense
+                fallback={
+                  <div className="flex flex-1 items-center justify-center text-[11px] text-[var(--td-text-subtle)]">
+                    Loading...
+                  </div>
+                }
+              >
+                <PythonCodeEditor
+                  key={activeEvent}
+                  value={currentCode}
+                  onChange={handleCodeChange}
+                  onEscape={onClose}
+                  onModEnter={handleSave}
+                  theme="dark"
+                />
+              </Suspense>
             </div>
           </div>
         )}
@@ -291,6 +286,7 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
           <div className="flex gap-1">
             {activeEvent && (
               <button
+                type="button"
                 onClick={handleDelete}
                 className="rounded px-2 py-0.5 text-[10px] text-[var(--td-danger)] transition-colors hover:bg-red-500/15"
               >
@@ -300,12 +296,14 @@ export function EventEditorModal({ widgetId, onClose }: EventEditorModalProps) {
           </div>
           <div className="flex gap-1.5">
             <button
+              type="button"
               onClick={onClose}
               className="rounded border border-[var(--td-border)] bg-[var(--td-panel-raised)] px-3 py-1 text-[10px] text-[var(--td-text-muted)] transition-colors hover:border-[var(--td-accent-border)] hover:bg-[var(--td-panel-soft)] hover:text-[var(--td-text)]"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleSave}
               disabled={!activeEvent}
               className="rounded border border-[var(--td-accent-border)] bg-[var(--td-accent-soft)] px-3 py-1 text-[10px] text-cyan-100 transition-colors hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-30"

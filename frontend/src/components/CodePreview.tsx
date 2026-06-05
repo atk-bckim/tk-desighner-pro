@@ -1,347 +1,279 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ApiError,
+  diagnosticsToMessages,
+  generateCode as generateCodeFromApi,
+  validateProject as validateProjectFromApi,
+} from "../services/apiClient";
 import { useDesignerStore } from "../store/designerStore";
-import type { NonVisualComponent, ProjectResource } from "../types/widgets";
-import { useState } from "react";
+import type { Project } from "../types/widgets";
 import { StatusChip, TextButton } from "./ui";
 
-const TTK_TYPES = new Set(["Notebook", "Progressbar", "Combobox", "Treeview", "Sizegrip", "Separator"]);
-const TUPLE_PROPS = new Set(["values"]);
-const RAW_PROPS = new Set(["font", "command", "variable", "textvariable"]);
+type CodeStatus = "idle" | "loading" | "ready" | "error";
+type ValidationStatus = "idle" | "checking" | "success" | "warning" | "error";
 
-function escapePy(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+interface CodeState {
+  code: string;
+  status: CodeStatus;
+  stale: boolean;
+  valid: boolean | null;
+  messages: string[];
+  error: string | null;
 }
 
-function generateCode(
-  widgets: ReturnType<typeof useDesignerStore.getState>["widgets"],
-  canvasWidth: number,
-  canvasHeight: number,
-  tkTheme: string,
-  menuBar: ReturnType<typeof useDesignerStore.getState>["menuBar"],
-  projectName: string,
-  rootBg: string,
-  rootResizable: boolean,
-  nonVisuals: NonVisualComponent[],
-  resources: ProjectResource[],
-): string {
-  // Track non-visual imports
-  const nvImports: string[] = [];
-  if (nonVisuals.some(nv => nv.type === "FileDialog")) nvImports.push("filedialog");
-  if (nonVisuals.some(nv => nv.type === "ColorChooser")) nvImports.push("colorchooser");
-  if (nonVisuals.some(nv => nv.type === "MessageBox")) nvImports.push("messagebox");
+interface ValidationState {
+  status: ValidationStatus;
+  messages: string[];
+  projectKey: string | null;
+}
 
-  const lines: string[] = [
-    "import tkinter as tk",
-    "from tkinter import ttk",
-  ];
-  if (nvImports.length > 0) {
-    lines.push(`from tkinter import ${nvImports.join(", ")}`);
+const DEBOUNCE_MS = 300;
+const IDLE_VALIDATION_STATE: ValidationState = {
+  status: "idle",
+  messages: [],
+  projectKey: null,
+};
+
+function messagesFromError(error: unknown, fallback: string): string[] {
+  if (error instanceof ApiError) {
+    return diagnosticsToMessages(error.diagnostics, error.errors).concat(
+      error.message ? [error.message] : [],
+    ).filter((message, index, messages) => message && messages.indexOf(message) === index);
   }
-  lines.push("", "", "def create_window():", `    root = tk.Tk()`, `    root.geometry("${canvasWidth}x${canvasHeight}")`, `    root.title("${escapePy(projectName)}")`);
+  if (error instanceof Error) return [error.message];
+  return [fallback];
+}
 
-  if (rootBg) {
-    lines.push(`    root.configure(bg="${escapePy(rootBg)}")`);
-  }
-  if (!rootResizable) {
-    lines.push("    root.resizable(False, False)");
-  }
-  lines.push("");
+function statusTone(state: CodeState): "neutral" | "accent" | "success" | "warning" | "danger" {
+  if (state.status === "error") return "danger";
+  if (state.stale || state.status === "loading") return "warning";
+  if (state.valid === false) return "danger";
+  if (state.messages.length > 0) return "warning";
+  if (state.status === "ready") return "success";
+  return "neutral";
+}
 
-  if (tkTheme && tkTheme !== "default") {
-    lines.push("    style = ttk.Style(root)");
-    lines.push(`    style.theme_use("${tkTheme}")`);
-    lines.push("");
-  }
+function statusLabel(state: CodeState) {
+  if (state.status === "error") return state.code ? "stale error" : "error";
+  if (state.stale) return "stale";
+  if (state.status === "loading") return "loading";
+  if (state.valid === false) return "invalid";
+  if (state.messages.length > 0) return "issues";
+  if (state.status === "ready") return "ready";
+  return "idle";
+}
 
-  // Generate PhotoImage declarations for used resources
-  const usedResourceIds = new Set<string>();
-  for (const w of widgets) {
-    if (w.props.image && typeof w.props.image === "string") {
-      usedResourceIds.add(w.props.image);
-    }
-  }
-  const usedResources = resources.filter(r => usedResourceIds.has(r.id));
-  if (usedResources.length > 0) {
-    lines.push("    # Image resources");
-    for (const res of usedResources) {
-      lines.push(`    ${res.name.replace(/[^a-zA-Z0-9_]/g, "_")} = tk.PhotoImage(data="${escapePy(res.dataUrl)}")`);
-    }
-    lines.push("");
-  }
+function validationTone(state: ValidationState): "neutral" | "success" | "warning" | "danger" {
+  if (state.status === "error") return "danger";
+  if (state.status === "warning") return "warning";
+  if (state.status === "success") return "success";
+  return "neutral";
+}
 
-  // Menu bar
-  if (menuBar && menuBar.menus.length > 0) {
-    lines.push("    menubar = tk.Menu(root)");
-    for (const menu of menuBar.menus) {
-      const menuVar = `menu_${menu.label.toLowerCase().replace(/\s+/g, "_")}`;
-      lines.push(`    ${menuVar} = tk.Menu(menubar, tearoff=0)`);
-      for (const item of menu.items) {
-        if (item.separator) {
-          lines.push(`    ${menuVar}.add_separator()`);
-        } else {
-          const accPart = item.accelerator ? `, accelerator="${escapePy(item.accelerator)}"` : "";
-          lines.push(`    ${menuVar}.add_command(label="${escapePy(item.label)}"${accPart})`);
-        }
-      }
-      lines.push(`    menubar.add_cascade(label="${escapePy(menu.label)}", menu=${menuVar})`);
-    }
-    lines.push("    root.config(menu=menubar)");
-    lines.push("");
-  }
+function buildPreviewText(state: CodeState) {
+  if (state.code) return state.code;
+  if (state.status === "error") return state.error ?? "Code generation failed.";
+  return "Generating Python from backend...";
+}
 
-  // Build parent-child map
-  const childrenMap = new Map<string | null, typeof widgets>();
-  for (const w of widgets) {
-    const pid = w.parentId ?? null;
-    if (!childrenMap.has(pid)) childrenMap.set(pid, []);
-    childrenMap.get(pid)!.push(w);
-  }
+function getProjectKey(project: Project, tkTheme: string) {
+  return JSON.stringify({ project, tkTheme });
+}
 
-  const renderProps = (w: typeof widgets[0], excludeKeys: Set<string> = new Set()): string => {
-    const parts: string[] = [];
-    for (const [k, v] of Object.entries(w.props)) {
-      if (excludeKeys.has(k) || v === "" || v === undefined || v === null) continue;
-      if (k === "image") {
-        const resource = resources.find(r => r.id === v);
-        if (resource) {
-          parts.push(`image=${resource.name.replace(/[^a-zA-Z0-9_]/g, "_")}`);
-        }
-        continue;
-      }
-      if (RAW_PROPS.has(k)) {
-        parts.push(`${k}=${v}`);
-      } else if (TUPLE_PROPS.has(k) && typeof v === "string") {
-        const items = (v as string).split(",").map(s => s.trim()).filter(Boolean).map(s => `"${escapePy(s)}"`).join(", ");
-        parts.push(`${k}=(${items},)`);
-      } else if (typeof v === "string") {
-        parts.push(`${k}="${escapePy(v)}"`);
-      } else {
-        parts.push(`${k}=${v}`);
-      }
-    }
-    return parts.length > 0 ? ", " + parts.join(", ") : "";
-  };
-
-  const renderWidget = (w: typeof widgets[0], parentVar: string, indent: string) => {
-    const varName = w.name || `${w.type.toLowerCase()}_${w.id.slice(0, 8)}`;
-
-    // Helper to generate layout call
-    const layoutCall = () => {
-      if (w.layoutManager === "grid") {
-        const parts: string[] = [`row=${w.gridRow ?? 0}`, `column=${w.gridCol ?? 0}`];
-        if (w.gridRowSpan && w.gridRowSpan > 1) parts.push(`rowspan=${w.gridRowSpan}`);
-        if (w.gridColSpan && w.gridColSpan > 1) parts.push(`columnspan=${w.gridColSpan}`);
-        if (w.gridSticky) parts.push(`sticky="${escapePy(w.gridSticky)}"`);
-        if (w.gridPadX && w.gridPadX > 0) parts.push(`padx=${w.gridPadX}`);
-        if (w.gridPadY && w.gridPadY > 0) parts.push(`pady=${w.gridPadY}`);
-        return `${indent}${varName}.grid(${parts.join(", ")})`;
-      }
-      return `${indent}${varName}.place(x=${Math.round(w.x)}, y=${Math.round(w.y)}, width=${Math.round(w.width)}, height=${Math.round(w.height)})`;
-    };
-
-    // Notebook
-    if (w.type === "Notebook") {
-      lines.push(`${indent}${varName} = ttk.Notebook(${parentVar})`);
-      lines.push(layoutCall());
-      lines.push("");
-      const tabs = childrenMap.get(w.id) || [];
-      for (const tab of tabs) {
-        const tabVar = tab.name || `frame_${tab.id.slice(0, 8)}`;
-        lines.push(`${indent}${tabVar} = ttk.Frame(${varName})`);
-        lines.push(`${indent}${varName}.add(${tabVar}, text="${escapePy(String(tab.props.text ?? ""))}")`);
-        const tabChildren = childrenMap.get(tab.id) || [];
-        for (const child of tabChildren) {
-          renderWidget(child, tabVar, indent);
-        }
-        lines.push("");
-      }
-      return;
-    }
-
-    // Toplevel
-    if (w.type === "Toplevel") {
-      const title = String(w.props.title ?? "");
-      const propsStr = renderProps(w, new Set(["title"]));
-      lines.push(`${indent}${varName} = tk.Toplevel(${parentVar}${propsStr})`);
-      if (title) lines.push(`${indent}${varName}.title("${escapePy(title)}")`);
-      lines.push(layoutCall());
-      lines.push("");
-      const children = childrenMap.get(w.id) || [];
-      for (const child of children) {
-        renderWidget(child, varName, indent);
-      }
-      return;
-    }
-
-    // OptionMenu
-    if (w.type === "OptionMenu") {
-      const valuesStr = String(w.props.values ?? "");
-      const values = valuesStr.split(",").map(s => s.trim()).filter(Boolean);
-      const defaultVal = values[0] || "";
-      const valuesPy = values.map(v => `"${escapePy(v)}"`).join(", ") || '""';
-      lines.push(`${indent}${varName}_var = tk.StringVar(value="${escapePy(defaultVal)}")`);
-      lines.push(`${indent}${varName} = tk.OptionMenu(${parentVar}, ${varName}_var, ${valuesPy})`);
-      lines.push(layoutCall());
-      lines.push("");
-      const optChildren = childrenMap.get(w.id) || [];
-      for (const child of optChildren) {
-        renderWidget(child, varName, indent);
-      }
-      return;
-    }
-
-    // Regular widgets
-    const propsStr = renderProps(w);
-    const module = TTK_TYPES.has(w.type) ? "ttk" : "tk";
-    lines.push(`${indent}${varName} = ${module}.${w.type}(${parentVar}${propsStr})`);
-    lines.push(layoutCall());
-    lines.push("");
-    const children = childrenMap.get(w.id) || [];
-    for (const child of children) {
-      renderWidget(child, varName, indent);
-    }
-  };
-
-  const rootWidgets = childrenMap.get(null) || [];
-  for (const w of rootWidgets) {
-    renderWidget(w, "root", "    ");
-  }
-
-  // Generate non-visual component code
-  if (nonVisuals.length > 0) {
-    lines.push("    # Non-visual components");
-    for (const nv of nonVisuals) {
-      if (nv.type === "Timer") {
-        const interval = Number(nv.props.interval) || 1000;
-        const oneshot = !!nv.props.oneshot;
-        lines.push(`    # ${nv.name}: root.after(${interval}, callback)${oneshot ? "  # one-shot" : ""}`);
-      } else if (nv.type === "FileDialog") {
-        const mode = String(nv.props.mode ?? "open");
-        const title = String(nv.props.title ?? "");
-        const titlePart = title ? `, title="${escapePy(title)}"` : "";
-        if (mode === "save") {
-          lines.push(`    # ${nv.name}: filedialog.asksaveasfilename(${titlePart.replace(", ", "")})`);
-        } else if (mode === "directory") {
-          lines.push(`    # ${nv.name}: filedialog.askdirectory(${titlePart.replace(", ", "")})`);
-        } else {
-          lines.push(`    # ${nv.name}: filedialog.askopenfilename(${titlePart.replace(", ", "")})`);
-        }
-      } else if (nv.type === "ColorChooser") {
-        const title = String(nv.props.title ?? "");
-        const titlePart = title ? `title="${escapePy(title)}"` : "";
-        lines.push(`    # ${nv.name}: colorchooser.askcolor(${titlePart})`);
-      } else if (nv.type === "MessageBox") {
-        const mbType = String(nv.props.mbType ?? "info");
-        const title = String(nv.props.title ?? "");
-        const message = String(nv.props.message ?? "");
-        if (mbType === "yesno") {
-          lines.push(`    # ${nv.name}: messagebox.askyesno(title="${escapePy(title)}", message="${escapePy(message)}")`);
-        } else if (mbType === "warning") {
-          lines.push(`    # ${nv.name}: messagebox.showwarning(title="${escapePy(title)}", message="${escapePy(message)}")`);
-        } else if (mbType === "error") {
-          lines.push(`    # ${nv.name}: messagebox.showerror(title="${escapePy(title)}", message="${escapePy(message)}")`);
-        } else {
-          lines.push(`    # ${nv.name}: messagebox.showinfo(title="${escapePy(title)}", message="${escapePy(message)}")`);
-        }
-      }
-    }
-    lines.push("");
-  }
-
-  // Generate binding code for Scrollbar ↔ Text/Listbox
-  const nameMap = new Map<string, string>();
-  for (const w of widgets) {
-    nameMap.set(w.id, w.name || `${w.type.toLowerCase()}_${w.id.slice(0, 8)}`);
-  }
-  for (const w of widgets) {
-    if (w.type === "Scrollbar" && w.bindings?.command) {
-      const sbVar = nameMap.get(w.id) || `scrollbar_${w.id.slice(0, 8)}`;
-      const tgtVar = nameMap.get(w.bindings.command) || `widget_${w.bindings.command.slice(0, 8)}`;
-      const orient = String(w.props.orient ?? "vertical");
-      if (orient === "vertical") {
-        lines.push(`    ${sbVar}.config(command=${tgtVar}.yview)`);
-        lines.push(`    ${tgtVar}.config(yscrollcommand=${sbVar}.set)`);
-      } else {
-        lines.push(`    ${sbVar}.config(command=${tgtVar}.xview)`);
-        lines.push(`    ${tgtVar}.config(xscrollcommand=${sbVar}.set)`);
-      }
-      lines.push("");
-    }
-  }
-
-  lines.push("    return root");
-  lines.push("");
-  lines.push("");
-  lines.push('if __name__ == "__main__":');
-  lines.push("    app = create_window()");
-  lines.push("    app.mainloop()");
-  lines.push("");
-
-  return lines.join("\n");
+function getCurrentProjectKey() {
+  const store = useDesignerStore.getState();
+  return getProjectKey(store.exportProject(), store.tkTheme);
 }
 
 export function CodePreview({ docked = false }: { docked?: boolean }) {
-  const { widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals, resources } = useDesignerStore();
+  const projectName = useDesignerStore((state) => state.projectName);
+  const canvasWidth = useDesignerStore((state) => state.canvasWidth);
+  const canvasHeight = useDesignerStore((state) => state.canvasHeight);
+  const widgets = useDesignerStore((state) => state.widgets);
+  const menuBar = useDesignerStore((state) => state.menuBar);
+  const rootBg = useDesignerStore((state) => state.rootBg);
+  const rootResizable = useDesignerStore((state) => state.rootResizable);
+  const variables = useDesignerStore((state) => state.variables);
+  const nonVisuals = useDesignerStore((state) => state.nonVisuals);
+  const resources = useDesignerStore((state) => state.resources);
+  const tkTheme = useDesignerStore((state) => state.tkTheme);
+
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
-  const code = generateCode(widgets, canvasWidth, canvasHeight, tkTheme, menuBar, projectName, rootBg, rootResizable, nonVisuals, resources);
+  const [codeState, setCodeState] = useState<CodeState>({
+    code: "",
+    status: "loading",
+    stale: false,
+    valid: null,
+    messages: [],
+    error: null,
+  });
+  const [validationState, setValidationState] = useState<ValidationState>(IDLE_VALIDATION_STATE);
+  const requestIdRef = useRef(0);
+  const validationRequestIdRef = useRef(0);
+
+  const project = useMemo<Project>(() => ({
+    name: projectName,
+    canvasWidth,
+    canvasHeight,
+    widgets,
+    menuBar,
+    rootBg,
+    rootResizable,
+    variables,
+    nonVisuals,
+    resources,
+  }), [
+    projectName,
+    canvasWidth,
+    canvasHeight,
+    widgets,
+    menuBar,
+    rootBg,
+    rootResizable,
+    variables,
+    nonVisuals,
+    resources,
+  ]);
+  const projectKey = useMemo(() => getProjectKey(project, tkTheme), [project, tkTheme]);
+  const currentValidationState = validationState.projectKey === projectKey
+    ? validationState
+    : IDLE_VALIDATION_STATE;
+
+  useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    let active = true;
+
+    const timeoutId = window.setTimeout(() => {
+      setCodeState((current) => ({
+        ...current,
+        status: "loading",
+        stale: Boolean(current.code),
+        error: null,
+      }));
+
+      generateCodeFromApi(project, tkTheme)
+        .then((response) => {
+          if (!active || requestIdRef.current !== requestId) return;
+          setCodeState({
+            code: response.code,
+            status: "ready",
+            stale: false,
+            valid: response.valid,
+            messages: diagnosticsToMessages(response.diagnostics),
+            error: response.valid ? null : "Generated code has diagnostics.",
+          });
+        })
+        .catch((error: unknown) => {
+          if (!active || requestIdRef.current !== requestId) return;
+          const messages = messagesFromError(error, "Code generation failed");
+          setCodeState((current) => ({
+            ...current,
+            status: "error",
+            stale: Boolean(current.code),
+            messages,
+            error: messages[0] ?? "Code generation failed",
+          }));
+        });
+    }, DEBOUNCE_MS);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [project, tkTheme]);
+
+  useEffect(() => {
+    return () => {
+      validationRequestIdRef.current += 1;
+    };
+  }, []);
 
   const handleValidate = async () => {
+    const requestId = ++validationRequestIdRef.current;
+    const requestProjectKey = projectKey;
+    setValidationState({ status: "checking", messages: [], projectKey: requestProjectKey });
     try {
-      const store = useDesignerStore.getState();
-      const res = await fetch("/api/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: store.projectName,
-          canvas_width: store.canvasWidth,
-          canvas_height: store.canvasHeight,
-          tk_theme: store.tkTheme,
-          widgets: store.widgets.map(w => ({
-            id: w.id, type: w.type, name: w.name, parent_id: w.parentId,
-            x: w.x, y: w.y, width: w.width, height: w.height, props: w.props,
-            bindings: w.bindings || {}, events: w.events || {},
-            layout_manager: w.layoutManager ?? "place",
-            grid_row: w.gridRow ?? null,
-            grid_col: w.gridCol ?? null,
-            grid_row_span: w.gridRowSpan ?? null,
-            grid_col_span: w.gridColSpan ?? null,
-            grid_sticky: w.gridSticky ?? null,
-            grid_pad_x: w.gridPadX ?? null,
-            grid_pad_y: w.gridPadY ?? null,
-          })),
-          menu_bar: store.menuBar,
-          variables: store.variables,
-          non_visuals: store.nonVisuals ?? [],
-          resources: (store.resources ?? []).map(r => ({ id: r.id, name: r.name, type: r.type, data_url: r.dataUrl })),
-        }),
+      const response = await validateProjectFromApi(project, tkTheme);
+      if (validationRequestIdRef.current !== requestId || getCurrentProjectKey() !== requestProjectKey) return;
+      const messages = diagnosticsToMessages(response.diagnostics, response.errors);
+      setValidationState({
+        status: response.valid ? "success" : "warning",
+        messages,
+        projectKey: requestProjectKey,
       });
-      const data = await res.json();
-      setErrors(data.errors || []);
-    } catch {
-      setErrors(["Validation request failed"]);
+    } catch (error) {
+      if (validationRequestIdRef.current !== requestId || getCurrentProjectKey() !== requestProjectKey) return;
+      setValidationState({
+        status: "error",
+        messages: messagesFromError(error, "Validation request failed"),
+        projectKey: requestProjectKey,
+      });
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
+  const handleCopy = async () => {
+    if (!codeState.code) return;
+    await navigator.clipboard.writeText(codeState.code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    window.setTimeout(() => setCopied(false), 1500);
   };
+
+  const validationLabel = currentValidationState.status === "checking"
+    ? "Checking"
+    : currentValidationState.messages.length > 0
+      ? `${currentValidationState.messages.length} issues`
+      : "Check";
+
+  const statusSummary = (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="truncate text-[11px] font-semibold text-[var(--td-text)]">Generated Python</span>
+      <StatusChip tone={widgets.length > 0 ? "accent" : "neutral"}>{widgets.length} widgets</StatusChip>
+      <StatusChip tone={statusTone(codeState)}>{statusLabel(codeState)}</StatusChip>
+      {currentValidationState.status !== "idle" && (
+        <StatusChip tone={validationTone(currentValidationState)}>
+          {currentValidationState.status === "checking" ? "checking" : currentValidationState.status}
+        </StatusChip>
+      )}
+    </div>
+  );
+
+  const diagnostics = [
+    ...codeState.messages.map((message) => ({ source: "Codegen", message })),
+    ...currentValidationState.messages.map((message) => ({ source: "Validation", message })),
+  ];
 
   if (docked) {
     return (
       <div className="flex h-full min-h-0 flex-col bg-[var(--td-panel)]">
         <div className="flex h-8 shrink-0 items-center justify-between border-b border-[var(--td-border)] px-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-[11px] font-semibold text-[var(--td-text)]">Generated Python</span>
-            <StatusChip tone={widgets.length > 0 ? "accent" : "neutral"}>{widgets.length} widgets</StatusChip>
+          {statusSummary}
+          <div className="ml-2 flex shrink-0 items-center gap-1">
+            <TextButton onClick={handleValidate} disabled={currentValidationState.status === "checking"}>
+              {validationLabel}
+            </TextButton>
+            <TextButton onClick={handleCopy} disabled={!codeState.code}>
+              {copied ? "Copied" : "Copy"}
+            </TextButton>
           </div>
-          <TextButton onClick={handleCopy}>{copied ? "Copied" : "Copy"}</TextButton>
         </div>
-        <pre className="min-h-0 flex-1 overflow-auto px-3 py-2 font-mono text-[11px] leading-5 text-emerald-300">
-          {code}
+        {codeState.error && (
+          <div className="border-b border-[var(--td-border)] px-3 py-1 text-[11px] text-red-300">
+            {codeState.error}
+          </div>
+        )}
+        <pre className={`min-h-0 flex-1 overflow-auto px-3 py-2 font-mono text-[11px] leading-5 ${codeState.status === "error" && !codeState.code ? "text-red-300" : "text-emerald-300"}`}>
+          {buildPreviewText(codeState)}
         </pre>
+        {diagnostics.length > 0 && (
+          <div className="max-h-20 overflow-auto border-t border-[var(--td-border)] px-3 py-2">
+            {diagnostics.map((diagnostic, index) => (
+              <div key={`${diagnostic.source}-${index}`} className="text-[10px] leading-5 text-amber-200">
+                {diagnostic.source}: {diagnostic.message}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -352,35 +284,46 @@ export function CodePreview({ docked = false }: { docked?: boolean }) {
         <button
           className="text-xs text-[#8888a8] hover:text-[#d4d4e8] flex items-center gap-2 transition-colors"
           onClick={() => setOpen(!open)}
+          type="button"
         >
           <span>Generated Code ({widgets.length} widgets)</span>
+          <StatusChip tone={statusTone(codeState)}>{statusLabel(codeState)}</StatusChip>
           <span className="text-[10px]">{open ? "▾" : "▸"}</span>
         </button>
         <div className="flex items-center gap-1">
           <button
             onClick={handleValidate}
-            className="text-[10px] bg-[#1e1e2e] border border-[#3c3c52] hover:border-[#06b6d4]/50 text-[#8888a8] hover:text-[#d4d4e8] px-2 py-0.5 rounded transition-colors"
+            disabled={currentValidationState.status === "checking"}
+            className="text-[10px] bg-[#1e1e2e] border border-[#3c3c52] hover:border-[#06b6d4]/50 text-[#8888a8] hover:text-[#d4d4e8] px-2 py-0.5 rounded transition-colors disabled:opacity-35"
+            type="button"
           >
-            {errors.length > 0 ? `${errors.length} issues` : "Check"}
+            {validationLabel}
           </button>
           <button
             onClick={handleCopy}
-            className="text-[10px] bg-[#1e1e2e] border border-[#3c3c52] hover:border-[#06b6d4]/50 text-[#8888a8] hover:text-[#d4d4e8] px-2 py-0.5 rounded transition-colors"
+            disabled={!codeState.code}
+            className="text-[10px] bg-[#1e1e2e] border border-[#3c3c52] hover:border-[#06b6d4]/50 text-[#8888a8] hover:text-[#d4d4e8] px-2 py-0.5 rounded transition-colors disabled:opacity-35"
+            type="button"
           >
-          {copied ? "Copied!" : "Copy"}
+            {copied ? "Copied!" : "Copy"}
           </button>
         </div>
       </div>
       {open && (
         <>
-          <pre className="px-4 pb-3 text-[11px] text-[#10b981] overflow-auto max-h-48 font-mono">
-            {code}
+          {codeState.error && (
+            <div className="px-4 pb-2 text-[10px] text-[#f87171]">
+              {codeState.error}
+            </div>
+          )}
+          <pre className={`px-4 pb-3 text-[11px] overflow-auto max-h-48 font-mono ${codeState.status === "error" && !codeState.code ? "text-[#f87171]" : "text-[#10b981]"}`}>
+            {buildPreviewText(codeState)}
           </pre>
-          {errors.length > 0 && (
+          {diagnostics.length > 0 && (
             <div className="px-4 pb-2">
-              {errors.map((err, i) => (
-                <div key={i} className="text-[10px] text-[#f59e0b] flex items-center gap-1 mb-0.5">
-                  <span>&#9888;</span> {err}
+              {diagnostics.map((diagnostic, index) => (
+                <div key={`${diagnostic.source}-${index}`} className="text-[10px] text-[#f59e0b] flex items-center gap-1 mb-0.5">
+                  <span>&#9888;</span> {diagnostic.source}: {diagnostic.message}
                 </div>
               ))}
             </div>

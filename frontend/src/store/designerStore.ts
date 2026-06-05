@@ -4,6 +4,7 @@ import { createWidget, resetCounters } from "../utils/widgetDefaults";
 import { TEMPLATES } from "../templates/index";
 import { v4 as uuid } from "uuid";
 import { getAbsolutePosition } from "../utils/position";
+import { normalizeProject, PROJECT_SCHEMA_VERSION } from "../utils/projectSerialization";
 
 interface DesignerState {
   projectName: string;
@@ -19,12 +20,12 @@ interface DesignerState {
   resizeWidget: (id: string, width: number, height: number) => void;
   updateWidgetProp: (id: string, key: string, value: unknown) => void;
   renameWidget: (id: string, name: string) => void;
-  loadProject: (project: Project) => void;
+  loadProject: (project: unknown) => void;
   exportProject: () => Project;
   setProjectName: (name: string) => void;
 
-  undoStack: WidgetInstance[][];
-  redoStack: WidgetInstance[][];
+  undoStack: Project[];
+  redoStack: Project[];
   snapshot: () => void;
   undo: () => void;
   redo: () => void;
@@ -106,6 +107,42 @@ interface DesignerState {
   removeResource: (id: string) => void;
 }
 
+const HISTORY_LIMIT = 100;
+
+function cloneProject(project: Project): Project {
+  try {
+    return normalizeProject(structuredClone(project));
+  } catch {
+    return normalizeProject(JSON.parse(JSON.stringify(project)));
+  }
+}
+
+function projectSnapshot(project: unknown): Project {
+  return cloneProject(normalizeProject(project));
+}
+
+function capHistory(stack: Project[]): Project[] {
+  return stack.length > HISTORY_LIMIT ? stack.slice(-HISTORY_LIMIT) : stack;
+}
+
+function stateFromProject(project: Project) {
+  resetCounters(project.widgets);
+  return {
+    projectName: project.name,
+    canvasWidth: project.canvasWidth,
+    canvasHeight: project.canvasHeight,
+    widgets: project.widgets,
+    selectedIds: [],
+    menuBar: project.menuBar ?? null,
+    rootBg: project.rootBg ?? "",
+    rootResizable: project.rootResizable ?? true,
+    tkTheme: project.tkTheme ?? "default",
+    variables: project.variables ?? [],
+    nonVisuals: project.nonVisuals ?? [],
+    resources: project.resources ?? [],
+  };
+}
+
 export const useDesignerStore = create<DesignerState>((set, get) => ({
   projectName: "Untitled",
   canvasWidth: 800,
@@ -173,29 +210,23 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   },
 
   loadProject: (project) => {
-    resetCounters(project.widgets);
+    const normalizedProject = projectSnapshot(project);
     set({
-      projectName: project.name,
-      canvasWidth: project.canvasWidth,
-      canvasHeight: project.canvasHeight,
-      widgets: project.widgets,
-      selectedIds: [],
-      menuBar: project.menuBar ?? null,
-      rootBg: project.rootBg ?? "",
-      rootResizable: project.rootResizable ?? true,
-      variables: project.variables ?? [],
-      nonVisuals: project.nonVisuals ?? [],
-      resources: project.resources ?? [],
+      ...stateFromProject(normalizedProject),
+      undoStack: [],
+      redoStack: [],
     });
   },
 
   exportProject: () => {
     const s = get();
     return {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
       name: s.projectName,
       canvasWidth: s.canvasWidth,
       canvasHeight: s.canvasHeight,
       widgets: s.widgets,
+      tkTheme: s.tkTheme,
       menuBar: s.menuBar,
       rootBg: s.rootBg,
       rootResizable: s.rootResizable,
@@ -211,34 +242,34 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
   redoStack: [],
 
   snapshot: () => {
-    const current = get().widgets;
+    const current = projectSnapshot(get().exportProject());
     set((s) => {
       const stack = [...s.undoStack, current];
-      return { undoStack: stack.length > 100 ? stack.slice(-100) : stack, redoStack: [] };
+      return { undoStack: capHistory(stack), redoStack: [] };
     });
   },
 
   undo: () => {
-    const { undoStack, widgets } = get();
+    const { undoStack, redoStack } = get();
     if (undoStack.length === 0) return;
-    const prev = undoStack[undoStack.length - 1];
+    const prev = projectSnapshot(undoStack[undoStack.length - 1]);
+    const current = projectSnapshot(get().exportProject());
     set({
-      widgets: prev,
+      ...stateFromProject(prev),
       undoStack: undoStack.slice(0, -1),
-      redoStack: [...get().redoStack, widgets],
-      selectedIds: [],
+      redoStack: capHistory([...redoStack, current]),
     });
   },
 
   redo: () => {
-    const { redoStack, widgets } = get();
+    const { undoStack, redoStack } = get();
     if (redoStack.length === 0) return;
-    const next = redoStack[redoStack.length - 1];
+    const next = projectSnapshot(redoStack[redoStack.length - 1]);
+    const current = projectSnapshot(get().exportProject());
     set({
-      widgets: next,
-      undoStack: [...get().undoStack, widgets],
+      ...stateFromProject(next),
+      undoStack: capHistory([...undoStack, current]),
       redoStack: redoStack.slice(0, -1),
-      selectedIds: [],
     });
   },
 
@@ -369,7 +400,7 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
     const template = TEMPLATES[templateKey];
     if (!template) return;
     const widgets = template.create();
-    set({ widgets, selectedIds: [], undoStack: [], redoStack: [] });
+    set({ widgets, selectedIds: [], redoStack: [] });
   },
 
   mousePos: null,
@@ -619,17 +650,22 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
 
   variables: [],
   addVariable: (varType) => {
+    get().snapshot();
     const id = uuid();
     const prefix = varType.replace("Var", "").toLowerCase();
     const name = `${prefix}_var_${get().variables.length + 1}`;
     set((s) => ({ variables: [...s.variables, { id, name, varType, defaultValue: "" }] }));
   },
-  removeVariable: (id) => set((s) => ({ variables: s.variables.filter(v => v.id !== id) })),
+  removeVariable: (id) => {
+    get().snapshot();
+    set((s) => ({ variables: s.variables.filter(v => v.id !== id) }));
+  },
   renameVariable: (id, name) => set((s) => ({ variables: s.variables.map(v => v.id === id ? { ...v, name } : v) })),
   updateVariableDefault: (id, defaultValue) => set((s) => ({ variables: s.variables.map(v => v.id === id ? { ...v, defaultValue } : v) })),
 
   nonVisuals: [],
   addNonVisual: (type) => {
+    get().snapshot();
     const id = uuid();
     const name = `${type.toLowerCase()}_${get().nonVisuals.filter(n => n.type === type).length + 1}`;
     const defaults: Record<string, Record<string, unknown>> = {
@@ -640,15 +676,20 @@ export const useDesignerStore = create<DesignerState>((set, get) => ({
     };
     set((s) => ({ nonVisuals: [...s.nonVisuals, { id, type, name, props: defaults[type] ?? {} }] }));
   },
-  removeNonVisual: (id) => set((s) => ({ nonVisuals: s.nonVisuals.filter(n => n.id !== id) })),
+  removeNonVisual: (id) => {
+    get().snapshot();
+    set((s) => ({ nonVisuals: s.nonVisuals.filter(n => n.id !== id) }));
+  },
   updateNonVisual: (id, updates) => set((s) => ({ nonVisuals: s.nonVisuals.map(n => n.id === id ? { ...n, ...updates } : n) })),
 
   resources: [],
   addResource: (name, dataUrl) => {
+    get().snapshot();
     const id = uuid();
     set((s) => ({ resources: [...s.resources, { id, name, type: "image", dataUrl }] }));
   },
   removeResource: (id) => {
+    get().snapshot();
     const { resources, widgets } = get();
     const updatedWidgets = widgets.map(w => {
       if (w.props.image === id) {

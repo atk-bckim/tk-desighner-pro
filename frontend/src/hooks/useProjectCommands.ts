@@ -1,13 +1,31 @@
 import { useCallback } from "react";
 import { showToast } from "../components/toastBus";
+import {
+  ApiError,
+  diagnosticsToMessages,
+  exportPython as exportPythonFromApi,
+  previewProject as previewProjectFromApi,
+  validateProject as validateProjectFromApi,
+} from "../services/apiClient";
+import { writeAutosave } from "./useAutosave";
 import { useDesignerStore } from "../store/designerStore";
 import type { OutputRecord } from "../types/output";
-import { projectToApiPayload } from "../utils/projectPayload";
+import { parseProjectJson, serializeProject } from "../utils/projectSerialization";
 
 type AddOutput = (record: Omit<OutputRecord, "id" | "createdAt">) => void;
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function messagesFromError(error: unknown, fallback: string): string[] {
+  if (error instanceof ApiError) {
+    return diagnosticsToMessages(error.diagnostics, error.errors).concat(
+      error.message ? [error.message] : [],
+    ).filter((message, index, messages) => message && messages.indexOf(message) === index);
+  }
+  if (error instanceof Error) return [error.message];
+  return [fallback];
 }
 
 export function useProjectCommands(addOutput: AddOutput) {
@@ -17,7 +35,7 @@ export function useProjectCommands(addOutput: AddOutput) {
 
   const saveProject = useCallback(() => {
     const project = useDesignerStore.getState().exportProject();
-    const json = JSON.stringify(project, null, 2);
+    const json = serializeProject(project);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -44,8 +62,9 @@ export function useProjectCommands(addOutput: AddOutput) {
       const reader = new FileReader();
       reader.onload = (readerEvent) => {
         try {
-          const project = JSON.parse(readerEvent.target?.result as string);
+          const project = parseProjectJson(String(readerEvent.target?.result ?? ""));
           useDesignerStore.getState().loadProject(project);
+          writeAutosave(project);
           showToast("Project loaded");
           addRecord({
             kind: "log",
@@ -72,31 +91,26 @@ export function useProjectCommands(addOutput: AddOutput) {
     const store = useDesignerStore.getState();
     const project = store.exportProject();
     try {
-      const response = await fetch("/api/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectToApiPayload(project, store.tkTheme)),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.detail || `HTTP ${response.status}`);
-      }
-      const errors = Array.isArray(data.errors) ? data.errors : [];
+      const data = await validateProjectFromApi(project, store.tkTheme);
+      const messages = diagnosticsToMessages(data.diagnostics, data.errors);
+      const hasIssues = messages.length > 0;
       addRecord({
         kind: "validation",
-        tone: errors.length > 0 ? "warning" : "success",
-        title: errors.length > 0 ? `${errors.length} validation issues` : "Validation passed",
-        message: errors.length > 0 ? "Review generated-code issues before export." : "No validation errors were reported.",
-        details: errors,
+        tone: hasIssues ? "warning" : "success",
+        title: hasIssues ? `${messages.length} validation issues` : "Validation passed",
+        message: hasIssues ? "Review generated-code issues before export." : "No validation errors were reported.",
+        details: messages,
       });
-      showToast(errors.length > 0 ? `${errors.length} validation issues` : "Validation passed", errors.length > 0 ? "warning" : "success");
+      showToast(hasIssues ? `${messages.length} validation issues` : "Validation passed", hasIssues ? "warning" : "success");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Validation request failed";
+      const messages = messagesFromError(error, "Validation request failed");
+      const message = messages[0] ?? "Validation request failed";
       addRecord({
         kind: "validation",
         tone: "error",
         title: "Validation failed",
         message,
+        details: messages,
       });
       showToast(`Validation failed: ${message}`, "error");
     }
@@ -106,31 +120,24 @@ export function useProjectCommands(addOutput: AddOutput) {
     const store = useDesignerStore.getState();
     const project = store.exportProject();
     try {
-      const response = await fetch("/api/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectToApiPayload(project, store.tkTheme)),
-      });
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({ detail: `HTTP ${response.status}` }));
-        throw new Error(errorBody.detail || `HTTP ${response.status}`);
-      }
-      const data = await response.json().catch(() => null);
-      const message = data?.warning ?? "Tkinter preview launched.";
+      const data = await previewProjectFromApi(project, store.tkTheme);
+      const message = data.warning ?? "Tkinter preview launched.";
       addRecord({
         kind: "preview",
-        tone: data?.warning ? "warning" : "success",
-        title: data?.warning ? "Preview code only" : "Preview launched",
+        tone: data.warning ? "warning" : "success",
+        title: data.warning ? "Preview code only" : "Preview launched",
         message,
       });
-      showToast(data?.warning ? data.warning : "Preview launched", data?.warning ? "warning" : "success");
+      showToast(data.warning ? data.warning : "Preview launched", data.warning ? "warning" : "success");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Preview failed";
+      const messages = messagesFromError(error, "Preview failed");
+      const message = messages[0] ?? "Preview failed";
       addRecord({
         kind: "preview",
         tone: "error",
         title: "Preview failed",
         message,
+        details: messages,
       });
       showToast(`Preview failed: ${message}`, "error");
     }
@@ -140,13 +147,7 @@ export function useProjectCommands(addOutput: AddOutput) {
     const store = useDesignerStore.getState();
     const project = store.exportProject();
     try {
-      const response = await fetch("/api/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectToApiPayload(project, store.tkTheme)),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
+      const blob = await exportPythonFromApi(project, store.tkTheme);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -161,12 +162,14 @@ export function useProjectCommands(addOutput: AddOutput) {
       });
       showToast("Exported successfully");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Export failed";
+      const messages = messagesFromError(error, "Export failed");
+      const message = messages[0] ?? "Export failed";
       addRecord({
         kind: "export",
         tone: "error",
         title: "Export failed",
         message,
+        details: messages,
       });
       showToast(`Export failed: ${message}`, "error");
     }

@@ -24,12 +24,14 @@ function mapWidgetForApi(widget: WidgetInstance) {
   };
 }
 
-export function projectToApiPayload(project: Project, tkTheme: string) {
+export function projectToApiPayload(project: Project, tkTheme = project.tkTheme ?? "default") {
+  const effectiveTkTheme = tkTheme.trim() ? tkTheme : project.tkTheme?.trim() ? project.tkTheme : "default";
+
   return {
     name: project.name,
     canvas_width: project.canvasWidth,
     canvas_height: project.canvasHeight,
-    tk_theme: tkTheme,
+    tk_theme: effectiveTkTheme,
     widgets: project.widgets.map(mapWidgetForApi),
     menu_bar: project.menuBar,
     root_bg: project.rootBg ?? "",

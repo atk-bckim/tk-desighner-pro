@@ -46,7 +46,7 @@ export function FontPicker({ value, onChange, onClose }: FontPickerProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-gray-800 rounded-lg p-4 w-96 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="bg-gray-800 rounded-lg p-4 w-96 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-sm font-semibold text-white mb-3">Font Picker</h3>
         <div className="flex flex-col gap-3">
           <label className="text-xs text-gray-400">Font Family
@@ -60,8 +60,8 @@ export function FontPicker({ value, onChange, onClose }: FontPickerProps) {
             </select>
           </label>
           <div className="flex gap-2">
-            <button onClick={() => setBold(!bold)} className={`px-3 py-1 rounded text-sm font-bold ${bold ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"}`}>B</button>
-            <button onClick={() => setItalic(!italic)} className={`px-3 py-1 rounded text-sm italic ${italic ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"}`}>I</button>
+            <button type="button" onClick={() => setBold(!bold)} className={`px-3 py-1 rounded text-sm font-bold ${bold ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"}`}>B</button>
+            <button type="button" onClick={() => setItalic(!italic)} className={`px-3 py-1 rounded text-sm italic ${italic ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-400"}`}>I</button>
           </div>
           <div className="bg-white rounded p-2 mt-1">
             <span className="text-gray-800" style={{ fontFamily: family, fontSize: `${size}px`, fontWeight: bold ? "bold" : "normal", fontStyle: italic ? "italic" : "normal" }}>AaBbCc 123</span>
@@ -69,8 +69,8 @@ export function FontPicker({ value, onChange, onClose }: FontPickerProps) {
           <code className="text-xs text-green-400 bg-gray-900 rounded p-1.5">{result}</code>
         </div>
         <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose} className="px-3 py-1 rounded text-sm bg-gray-700 hover:bg-gray-600 text-gray-300">Cancel</button>
-          <button onClick={() => { onChange(result); onClose(); }} className="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-500 text-white">Apply</button>
+          <button type="button" onClick={onClose} className="px-3 py-1 rounded text-sm bg-gray-700 hover:bg-gray-600 text-gray-300">Cancel</button>
+          <button type="button" onClick={() => { onChange(result); onClose(); }} className="px-3 py-1 rounded text-sm bg-blue-600 hover:bg-blue-500 text-white">Apply</button>
         </div>
       </div>
     </div>

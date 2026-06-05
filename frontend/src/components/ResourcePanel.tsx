@@ -30,7 +30,7 @@ export function ResourcePanel({ onClose }: ResourcePanelProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="flex max-h-[70vh] w-[500px] flex-col rounded-lg border border-[var(--td-border)] bg-[var(--td-panel)] shadow-[var(--td-shadow-panel)]" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="flex max-h-[70vh] w-[500px] flex-col rounded-lg border border-[var(--td-border)] bg-[var(--td-panel)] shadow-[var(--td-shadow-panel)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-[var(--td-border)] px-4 py-3">
           <h3 className="text-xs font-semibold text-[var(--td-text)]">Image Resources</h3>
           <button

@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useDesignerStore } from "../store/designerStore";
 import type { TkVarType } from "../types/widgets";
 
@@ -6,13 +7,27 @@ interface VariablePanelProps {
 }
 
 export function VariablePanel({ onClose }: VariablePanelProps) {
-  const { variables, addVariable, removeVariable, renameVariable, updateVariableDefault } = useDesignerStore();
+  const { variables, addVariable, removeVariable, renameVariable, updateVariableDefault, snapshot } = useDesignerStore();
+  const editSessionRef = useRef<Set<string>>(new Set());
   const inputCls = "block w-full rounded border border-[var(--td-border)] bg-[var(--td-bg)] px-1.5 py-0.5 text-xs text-[var(--td-text)] focus:border-[var(--td-accent)] focus:outline-none";
   const btnCls = "rounded border border-[var(--td-border)] bg-[var(--td-panel)] px-2 py-0.5 text-[10px] text-[var(--td-text-muted)] transition-colors hover:border-[var(--td-accent-border)] hover:bg-[var(--td-panel-soft)] hover:text-[var(--td-text)]";
 
+  const snapshotBeforeValueChange = (sessionKey: string, currentValue: string, nextValue: string) => {
+    if (currentValue === nextValue) return false;
+    if (!editSessionRef.current.has(sessionKey)) {
+      snapshot();
+      editSessionRef.current.add(sessionKey);
+    }
+    return true;
+  };
+
+  const endEditSession = (sessionKey: string) => {
+    editSessionRef.current.delete(sessionKey);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="flex max-h-[70vh] w-[420px] flex-col rounded-lg border border-[var(--td-border)] bg-[var(--td-panel)] shadow-[var(--td-shadow-panel)]" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="flex max-h-[70vh] w-[420px] flex-col rounded-lg border border-[var(--td-border)] bg-[var(--td-panel)] shadow-[var(--td-shadow-panel)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-[var(--td-border)] px-4 py-3">
           <h3 className="text-xs font-semibold text-[var(--td-text)]">Tkinter Variables</h3>
           <button
@@ -36,8 +51,27 @@ export function VariablePanel({ onClose }: VariablePanelProps) {
           {variables.map((v) => (
             <div key={v.id} className="mb-2 flex items-center gap-2 rounded bg-[var(--td-panel-raised)] p-2">
               <span className="w-20 shrink-0 font-mono text-[10px] text-cyan-100">{v.varType}</span>
-              <input className={`${inputCls} flex-1`} value={v.name} onChange={(e) => renameVariable(v.id, e.target.value)} />
-              <input className={`${inputCls} w-24`} value={v.defaultValue} placeholder="default" onChange={(e) => updateVariableDefault(v.id, e.target.value)} />
+              <input
+                className={`${inputCls} flex-1`}
+                value={v.name}
+                onChange={(e) => {
+                  if (snapshotBeforeValueChange(`variable:${v.id}:name`, v.name, e.target.value)) {
+                    renameVariable(v.id, e.target.value);
+                  }
+                }}
+                onBlur={() => endEditSession(`variable:${v.id}:name`)}
+              />
+              <input
+                className={`${inputCls} w-24`}
+                value={v.defaultValue}
+                placeholder="default"
+                onChange={(e) => {
+                  if (snapshotBeforeValueChange(`variable:${v.id}:default`, v.defaultValue, e.target.value)) {
+                    updateVariableDefault(v.id, e.target.value);
+                  }
+                }}
+                onBlur={() => endEditSession(`variable:${v.id}:default`)}
+              />
               <button
                 type="button"
                 onClick={() => removeVariable(v.id)}

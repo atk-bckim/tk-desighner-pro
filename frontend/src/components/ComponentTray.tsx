@@ -11,12 +11,17 @@ const TYPE_LABELS: Record<NonVisualType, string> = {
 };
 
 function EditModal({ component, onClose }: { component: NonVisualComponent; onClose: () => void }) {
+  const snapshot = useDesignerStore((s) => s.snapshot);
   const updateNonVisual = useDesignerStore((s) => s.updateNonVisual);
   const [props, setProps] = useState({ ...component.props });
   const [name, setName] = useState(component.name);
 
   const handleSave = () => {
-    updateNonVisual(component.id, { name, props });
+    const hasChanges = name !== component.name || JSON.stringify(props) !== JSON.stringify(component.props);
+    if (hasChanges) {
+      snapshot();
+      updateNonVisual(component.id, { name, props });
+    }
     onClose();
   };
 
@@ -30,7 +35,7 @@ function EditModal({ component, onClose }: { component: NonVisualComponent; onCl
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
-      <div className="relative min-w-72 rounded-lg border border-[var(--td-border)] bg-[var(--td-panel-raised)] p-4 shadow-[var(--td-shadow-panel)]" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" className="relative min-w-72 rounded-lg border border-[var(--td-border)] bg-[var(--td-panel-raised)] p-4 shadow-[var(--td-shadow-panel)]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <span className="flex items-center gap-2 text-sm font-medium text-[var(--td-text)]">
             <ComponentIcon className="text-[var(--td-text-muted)]" />

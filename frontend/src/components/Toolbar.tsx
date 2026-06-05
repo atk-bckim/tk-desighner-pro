@@ -5,7 +5,31 @@ import { showToast } from "./toastBus";
 import { VariablePanel } from "./VariablePanel";
 import { ResourcePanel } from "./ResourcePanel";
 import type { NonVisualType } from "../types/widgets";
-import { projectToApiPayload } from "../utils/projectPayload";
+import {
+  ApiError,
+  diagnosticsToMessages,
+  exportPython as exportPythonFromApi,
+  previewProject as previewProjectFromApi,
+} from "../services/apiClient";
+import { writeAutosave } from "../hooks/useAutosave";
+import { parseProjectJson, serializeProject } from "../utils/projectSerialization";
+import { TemplateIcon } from "./templateIcons";
+import { FolderOpenIcon, MessageIcon, PaletteIcon, TimerIcon } from "./icons";
+
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    const messages = diagnosticsToMessages(error.diagnostics, error.errors);
+    return messages[0] ?? error.message ?? fallback;
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
+const NON_VISUAL_COMPONENTS = [
+  { type: "Timer", Icon: TimerIcon },
+  { type: "FileDialog", Icon: FolderOpenIcon },
+  { type: "ColorChooser", Icon: PaletteIcon },
+  { type: "MessageBox", Icon: MessageIcon },
+] as const satisfies { type: NonVisualType; Icon: typeof TimerIcon }[];
 
 export function Toolbar() {
   const { exportProject, loadProject, projectName, setProjectName, undo, redo, snapshot, removeWidget, duplicateWidget, selectedIds, snapEnabled, toggleSnap, loadTemplate, zoom, setZoom, tabOrderMode, toggleTabOrderMode, addNonVisual } =
@@ -17,7 +41,7 @@ export function Toolbar() {
 
   const handleSave = () => {
     const project = exportProject();
-    const json = JSON.stringify(project, null, 2);
+    const json = serializeProject(project);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -37,8 +61,9 @@ export function Toolbar() {
       const reader = new FileReader();
       reader.onload = (ev) => {
         try {
-          const project = JSON.parse(ev.target?.result as string);
+          const project = parseProjectJson(String(ev.target?.result ?? ""));
           loadProject(project);
+          writeAutosave(project);
           showToast("Project loaded");
         } catch {
           showToast("Invalid project file", "error");
@@ -53,23 +78,14 @@ export function Toolbar() {
     try {
       const project = exportProject();
       const store = useDesignerStore.getState();
-      const res = await fetch("/api/preview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectToApiPayload(project, store.tkTheme)),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-        throw new Error(err.detail || `HTTP ${res.status}`);
-      }
-      const data = await res.json().catch(() => null);
-      if (data?.warning) {
+      const data = await previewProjectFromApi(project, store.tkTheme);
+      if (data.warning) {
         showToast(data.warning, "warning");
       } else {
         showToast("Preview launched");
       }
     } catch (err) {
-      showToast("Preview failed: " + (err as Error).message, "error");
+      showToast("Preview failed: " + errorMessage(err, "Preview failed"), "error");
     }
   };
 
@@ -77,13 +93,7 @@ export function Toolbar() {
     try {
       const project = exportProject();
       const store = useDesignerStore.getState();
-      const res = await fetch("/api/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(projectToApiPayload(project, store.tkTheme)),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
+      const blob = await exportPythonFromApi(project, store.tkTheme);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -92,7 +102,7 @@ export function Toolbar() {
       URL.revokeObjectURL(url);
       showToast("Exported successfully");
     } catch (err) {
-      showToast("Export failed: " + (err as Error).message, "error");
+      showToast("Export failed: " + errorMessage(err, "Export failed"), "error");
     }
   };
 
@@ -128,7 +138,7 @@ export function Toolbar() {
           {Object.entries(TEMPLATES).map(([key, tpl]) => (
             <button key={key} className="w-full text-left px-3 py-1.5 text-xs text-[#8888a8] hover:bg-[#363650] hover:text-[#d4d4e8] flex items-center gap-2 transition-colors"
               onClick={() => { snapshot(); loadTemplate(key); }}>
-              <span>{(tpl as { icon: string }).icon}</span>
+              <TemplateIcon templateKey={key} />
               <span>{(tpl as { label: string }).label}</span>
             </button>
           ))}
@@ -139,15 +149,10 @@ export function Toolbar() {
         <button className={btnGhost}>Components &#9662;</button>
         <div className="absolute left-0 top-full pt-1 hidden group-hover:block z-50">
           <div className="bg-[#252536] border border-[#3c3c52] rounded shadow-xl py-1 min-w-40">
-            {([
-              ["Timer", "\u23F1"],
-              ["FileDialog", "\uD83D\uDCC2"],
-              ["ColorChooser", "\uD83C\uDFA8"],
-              ["MessageBox", "\uD83D\uDCAC"],
-            ] as [NonVisualType, string][]).map(([type, icon]) => (
+            {NON_VISUAL_COMPONENTS.map(({ type, Icon }) => (
               <button key={type} className="w-full text-left px-3 py-1.5 text-xs text-[#8888a8] hover:bg-[#363650] hover:text-[#d4d4e8] flex items-center gap-2 transition-colors"
                 onClick={() => addNonVisual(type)}>
-                <span>{icon}</span>
+                <Icon className="h-4 w-4" />
                 <span>{type}</span>
               </button>
             ))}

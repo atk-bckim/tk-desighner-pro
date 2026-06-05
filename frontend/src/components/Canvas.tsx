@@ -7,7 +7,7 @@ import { EventEditorModal } from "./EventEditorModal";
 import { Ruler } from "./Ruler";
 import { WIDGET_EVENTS, INTERACTIVE_TYPES } from "../utils/widgetDefaults";
 import type { WidgetType } from "../types/widgets";
-import React, { useRef, useCallback, useState, useEffect } from "react";
+import React, { useRef, useCallback, useState, useEffect, useMemo } from "react";
 
 function getReliefShadow(relief: string): React.CSSProperties {
   if (relief === "raised") return { boxShadow: "1px 1px 0 0 #888, inset 1px 1px 0 0 #fff" };
@@ -273,7 +273,7 @@ function WidgetRenderer({
   widget,
   allWidgets,
   isSelected,
-  onSelect,
+  onSelectWidget,
   onMove,
   onResize,
   renderChild,
@@ -289,7 +289,7 @@ function WidgetRenderer({
   widget: WidgetInstance;
   allWidgets: WidgetInstance[];
   isSelected: boolean;
-  onSelect: (multi?: boolean) => void;
+  onSelectWidget: (widgetId: string, multi?: boolean) => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, w: number, h: number) => void;
   renderChild: (child: WidgetInstance) => React.ReactNode;
@@ -316,7 +316,7 @@ function WidgetRenderer({
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      onSelect(e.ctrlKey || e.metaKey);
+      onSelectWidget(widget.id, e.ctrlKey || e.metaKey);
       if (widget.locked) return;
       moveRef.current = {
         startX: e.clientX,
@@ -353,7 +353,7 @@ function WidgetRenderer({
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [widget, onSelect, onMove, onSetGuides, allWidgets, zoom, onSnapshot],
+    [widget, onSelectWidget, onMove, onSetGuides, allWidgets, zoom, onSnapshot],
   );
 
   const createResizeHandler = useCallback(
@@ -572,8 +572,22 @@ function WidgetRenderer({
 }
 
 export function Canvas() {
-  const { widgets, selectedIds, canvasWidth, canvasHeight, selectWidget, moveWidget, resizeWidget, gridSize, snapEnabled, setActiveTab, zoom, snapshot, setMousePos, menuBar, rootBg, tabOrderMode } =
-    useDesignerStore();
+  const widgets = useDesignerStore((state) => state.widgets);
+  const selectedIds = useDesignerStore((state) => state.selectedIds);
+  const canvasWidth = useDesignerStore((state) => state.canvasWidth);
+  const canvasHeight = useDesignerStore((state) => state.canvasHeight);
+  const selectWidget = useDesignerStore((state) => state.selectWidget);
+  const moveWidget = useDesignerStore((state) => state.moveWidget);
+  const resizeWidget = useDesignerStore((state) => state.resizeWidget);
+  const gridSize = useDesignerStore((state) => state.gridSize);
+  const snapEnabled = useDesignerStore((state) => state.snapEnabled);
+  const setActiveTab = useDesignerStore((state) => state.setActiveTab);
+  const zoom = useDesignerStore((state) => state.zoom);
+  const snapshot = useDesignerStore((state) => state.snapshot);
+  const setMousePos = useDesignerStore((state) => state.setMousePos);
+  const menuBar = useDesignerStore((state) => state.menuBar);
+  const rootBg = useDesignerStore((state) => state.rootBg);
+  const tabOrderMode = useDesignerStore((state) => state.tabOrderMode);
   const { setNodeRef, isOver } = useDroppable({ id: "canvas" });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; widgetId: string } | null>(null);
   const [eventEditor, setEventEditor] = useState<string | null>(null);
@@ -581,9 +595,50 @@ export function Canvas() {
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
   const scrollRef = useRef<HTMLDivElement>(null);
   const panningRef = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+  const mousePosFrameRef = useRef<number | null>(null);
+  const pendingMousePosRef = useRef<{ x: number; y: number } | null>(null);
+  const lastMousePosRef = useRef<{ x: number; y: number } | null>(null);
 
-  const rootWidgets = widgets.filter(w => w.parentId === null);
+  const rootWidgets = useMemo(() => widgets.filter(w => w.parentId === null), [widgets]);
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const isMarqueeActive = selRect !== null;
+
+  const flushMousePos = useCallback(() => {
+    mousePosFrameRef.current = null;
+    const pending = pendingMousePosRef.current;
+
+    if (pending === null) {
+      if (lastMousePosRef.current !== null) {
+        lastMousePosRef.current = null;
+        setMousePos(null);
+      }
+      return;
+    }
+
+    const last = lastMousePosRef.current;
+    if (!last || last.x !== pending.x || last.y !== pending.y) {
+      lastMousePosRef.current = pending;
+      setMousePos(pending);
+    }
+  }, [setMousePos]);
+
+  const queueMousePos = useCallback(
+    (pos: { x: number; y: number } | null) => {
+      pendingMousePosRef.current = pos;
+      if (mousePosFrameRef.current !== null) return;
+      mousePosFrameRef.current = window.requestAnimationFrame(flushMousePos);
+    },
+    [flushMousePos],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (mousePosFrameRef.current !== null) {
+        window.cancelAnimationFrame(mousePosFrameRef.current);
+      }
+      setMousePos(null);
+    };
+  }, [setMousePos]);
 
   // Marquee selection
   useEffect(() => {
@@ -628,12 +683,86 @@ export function Canvas() {
     };
   }, [isMarqueeActive, selectWidget]);
 
-  const snapFn = (v: number) => snapEnabled ? Math.round(v / gridSize) * gridSize : v;
+  const snapFn = useCallback(
+    (v: number) => snapEnabled ? Math.round(v / gridSize) * gridSize : v,
+    [gridSize, snapEnabled],
+  );
 
-  const gridStyle = snapEnabled ? {
-    backgroundImage: `linear-gradient(to right, #f0f0f0 1px, transparent 1px), linear-gradient(to bottom, #f0f0f0 1px, transparent 1px)`,
-    backgroundSize: `${gridSize}px ${gridSize}px`,
-  } : {};
+  const gridStyle = useMemo<React.CSSProperties>(
+    () => snapEnabled ? {
+      backgroundImage: `linear-gradient(to right, #f0f0f0 1px, transparent 1px), linear-gradient(to bottom, #f0f0f0 1px, transparent 1px)`,
+      backgroundSize: `${gridSize}px ${gridSize}px`,
+    } : {},
+    [gridSize, snapEnabled],
+  );
+
+  const canvasFrameStyle = useMemo<React.CSSProperties>(
+    () => ({ width: canvasWidth * zoom, height: canvasHeight * zoom, backgroundColor: rootBg || "#ffffff" }),
+    [canvasHeight, canvasWidth, rootBg, zoom],
+  );
+
+  const scaledCanvasStyle = useMemo<React.CSSProperties>(
+    () => ({ transform: `scale(${zoom})`, transformOrigin: "top left", width: canvasWidth, height: canvasHeight, ...gridStyle }),
+    [canvasHeight, canvasWidth, gridStyle, zoom],
+  );
+
+  const handleMoveWidget = useCallback(
+    (id: string, x: number, y: number) => moveWidget(id, snapFn(x), snapFn(y)),
+    [moveWidget, snapFn],
+  );
+
+  const handleResizeWidget = useCallback(
+    (id: string, width: number, height: number) => {
+      resizeWidget(id, Math.max(20, snapFn(width)), Math.max(20, snapFn(height)));
+    },
+    [resizeWidget, snapFn],
+  );
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, widgetId: string) => {
+    setContextMenu({ x: e.clientX, y: e.clientY, widgetId });
+  }, []);
+
+  const handleDoubleClickWidget = useCallback((widgetId: string) => {
+    const widget = useDesignerStore.getState().widgets.find((w) => w.id === widgetId);
+    if (widget) {
+      const events = WIDGET_EVENTS[widget.type] ?? [];
+      if (events.length > 0) {
+        setEventEditor(widgetId);
+      }
+    }
+  }, []);
+
+  const handleCanvasMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      queueMousePos({
+        x: Math.round((e.clientX - rect.left) / zoom),
+        y: Math.round((e.clientY - rect.top) / zoom),
+      });
+    },
+    [queueMousePos, zoom],
+  );
+
+  const handleCanvasMouseLeave = useCallback(() => {
+    queueMousePos(null);
+  }, [queueMousePos]);
+
+  const handleCanvasMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      if (e.target === e.currentTarget) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setSelRect({
+          sx: (e.clientX - rect.left) / zoom,
+          sy: (e.clientY - rect.top) / zoom,
+          ex: (e.clientX - rect.left) / zoom,
+          ey: (e.clientY - rect.top) / zoom,
+        });
+        selectWidget(null);
+      }
+    },
+    [selectWidget, zoom],
+  );
 
   const renderWidget = (w: WidgetInstance, isInGrid = false): React.ReactNode => {
     return (
@@ -641,24 +770,14 @@ export function Canvas() {
         key={w.id}
         widget={w}
         allWidgets={widgets}
-        isSelected={selectedIds.includes(w.id)}
-        onSelect={(multi) => selectWidget(w.id, multi)}
-        onMove={(id, x, y) => moveWidget(id, snapFn(x), snapFn(y))}
-        onResize={(id, w, h) => resizeWidget(id, Math.max(20, snapFn(w)), Math.max(20, snapFn(h)))}
+        isSelected={selectedIdSet.has(w.id)}
+        onSelectWidget={selectWidget}
+        onMove={handleMoveWidget}
+        onResize={handleResizeWidget}
         renderChild={(child) => renderWidget(child, child.layoutManager === "grid")}
         setActiveTab={setActiveTab}
-        onContextMenu={(e, widgetId) => {
-          setContextMenu({ x: e.clientX, y: e.clientY, widgetId });
-        }}
-        onDoubleClick={(widgetId) => {
-          const w = useDesignerStore.getState().widgets.find((w) => w.id === widgetId);
-          if (w) {
-            const events = WIDGET_EVENTS[w.type] ?? [];
-            if (events.length > 0) {
-              setEventEditor(widgetId);
-            }
-          }
-        }}
+        onContextMenu={handleContextMenu}
+        onDoubleClick={handleDoubleClickWidget}
         onSetGuides={setGuides}
         zoom={zoom}
         onSnapshot={snapshot}
@@ -695,13 +814,6 @@ export function Canvas() {
       onMouseUp={() => { panningRef.current = null; }}
       onMouseLeave={() => { panningRef.current = null; }}
     >
-      <style>{`
-        .canvas-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-        .canvas-scroll::-webkit-scrollbar-track { background: transparent; }
-        .canvas-scroll::-webkit-scrollbar-thumb { background: #06b6d440; border-radius: 4px; }
-        .canvas-scroll::-webkit-scrollbar-thumb:hover { background: #06b6d480; }
-        .canvas-scroll::-webkit-scrollbar-corner { background: transparent; }
-      `}</style>
       <div className="inline-flex flex-col">
         <div className="flex">
           <div className="w-5 h-5 shrink-0" />
@@ -717,27 +829,12 @@ export function Canvas() {
             className={`relative border-2 border-dashed ${
               isOver ? "border-blue-400" : "border-gray-600"
             }`}
-            style={{ width: canvasWidth * zoom, height: canvasHeight * zoom, backgroundColor: rootBg || "#ffffff" }}
-            onMouseMove={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setMousePos({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
-            }}
-            onMouseLeave={() => setMousePos(null)}
-            onMouseDown={(e) => {
-              if (e.button !== 0) return;
-              if (e.target === e.currentTarget) {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setSelRect({
-                  sx: (e.clientX - rect.left) / zoom,
-                  sy: (e.clientY - rect.top) / zoom,
-                  ex: (e.clientX - rect.left) / zoom,
-                  ey: (e.clientY - rect.top) / zoom,
-                });
-                selectWidget(null);
-              }
-            }}
+            style={canvasFrameStyle}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseLeave={handleCanvasMouseLeave}
+            onMouseDown={handleCanvasMouseDown}
           >
-            <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: canvasWidth, height: canvasHeight, ...gridStyle }}>
+            <div style={scaledCanvasStyle}>
               {menuBar && (
                 <div className="absolute top-0 left-0 right-0 h-6 bg-[#f0f0f0] border-b border-gray-400 flex items-center z-50" style={{ width: canvasWidth }}>
                   {menuBar.menus.map((menu) => (

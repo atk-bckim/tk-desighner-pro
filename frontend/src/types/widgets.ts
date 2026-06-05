@@ -75,10 +75,12 @@ export interface ProjectResource {
 }
 
 export interface Project {
+  schemaVersion?: number;
   name: string;
   canvasWidth: number;
   canvasHeight: number;
   widgets: WidgetInstance[];
+  tkTheme?: string;
   menuBar?: MenuBarData | null;
   rootBg?: string;
   rootResizable?: boolean;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { useDesignerStore } from "../store/designerStore";
 import { getEditableProps } from "../utils/widgetDefaults";
@@ -77,6 +77,7 @@ export function InspectorPanel() {
   } = useDesignerStore();
   const [activeTab, setActiveTab] = useState<InspectorTab>("layout");
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
+  const editSessionRef = useRef<Set<string>>(new Set());
 
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const widget = selectedId ? widgets.find((w) => w.id === selectedId) : null;
@@ -132,12 +133,16 @@ export function InspectorPanel() {
       return (
         <FieldLabel key={prop.key} label={prop.label}>
           <div className="flex gap-1">
-            <TextInput
-              className="flex-1 font-mono"
-              value={String(value ?? "")}
-              onChange={(e) => updateWidgetProp(targetId, prop.key, e.target.value)}
-              onBlur={() => snapshot()}
-            />
+              <TextInput
+                className="flex-1 font-mono"
+                value={String(value ?? "")}
+                onChange={(e) => {
+                  if (snapshotBeforeValueChange(`widget:${targetId}:prop:${prop.key}`, String(value ?? ""), e.target.value)) {
+                    updateWidgetProp(targetId, prop.key, e.target.value);
+                  }
+                }}
+                onBlur={() => endEditSession(`widget:${targetId}:prop:${prop.key}`)}
+              />
             <TextButton className="w-7 shrink-0 px-0" onClick={() => setFontPickerOpen(true)}>...</TextButton>
           </div>
         </FieldLabel>
@@ -170,8 +175,12 @@ export function InspectorPanel() {
             type="color"
             className={colorInputClass}
             value={String(value ?? "#000000")}
-            onChange={(e) => updateWidgetProp(targetId, prop.key, e.target.value)}
-            onBlur={() => snapshot()}
+            onChange={(e) => {
+              if (snapshotBeforeValueChange(`widget:${targetId}:prop:${prop.key}`, String(value ?? "#000000"), e.target.value)) {
+                updateWidgetProp(targetId, prop.key, e.target.value);
+              }
+            }}
+            onBlur={() => endEditSession(`widget:${targetId}:prop:${prop.key}`)}
           />
         </FieldLabel>
       );
@@ -182,8 +191,13 @@ export function InspectorPanel() {
         <TextInput
           type={prop.type === "number" ? "number" : "text"}
           value={String(value ?? "")}
-          onChange={(e) => updateWidgetProp(targetId, prop.key, prop.type === "number" ? Number(e.target.value) : e.target.value)}
-          onBlur={() => snapshot()}
+          onChange={(e) => {
+            const nextValue = prop.type === "number" ? Number(e.target.value) : e.target.value;
+            if (snapshotBeforeValueChange(`widget:${targetId}:prop:${prop.key}`, value ?? "", nextValue)) {
+              updateWidgetProp(targetId, prop.key, nextValue);
+            }
+          }}
+          onBlur={() => endEditSession(`widget:${targetId}:prop:${prop.key}`)}
         />
       </FieldLabel>
     );
@@ -206,6 +220,26 @@ export function InspectorPanel() {
     });
   };
 
+  const snapshotBeforeValueChange = (sessionKey: string, currentValue: unknown, nextValue: unknown) => {
+    if (currentValue === nextValue) return false;
+    if (!editSessionRef.current.has(sessionKey)) {
+      snapshot();
+      editSessionRef.current.add(sessionKey);
+    }
+    return true;
+  };
+
+  const snapshotBeforeEditSession = (sessionKey: string) => {
+    if (!editSessionRef.current.has(sessionKey)) {
+      snapshot();
+      editSessionRef.current.add(sessionKey);
+    }
+  };
+
+  const endEditSession = (sessionKey: string) => {
+    editSessionRef.current.delete(sessionKey);
+  };
+
   if (selectedIds.length > 1) {
     const selectedWidgets = widgets.filter((candidate) => selectedIds.includes(candidate.id));
     const commonProps = COMMON_PROPS.filter((propKey) =>
@@ -222,25 +256,25 @@ export function InspectorPanel() {
         <PanelHeader title="Inspector" detail={`${selectedIds.length} selected`} />
         <PanelSection title="Align">
           <div className="grid grid-cols-3 gap-1">
-            <TextButton className={tinyActionClass} onClick={() => alignWidgets(selectedIds, "left")}>Left</TextButton>
-            <TextButton className={tinyActionClass} onClick={() => alignWidgets(selectedIds, "top")}>Top</TextButton>
-            <TextButton className={tinyActionClass} onClick={() => alignWidgets(selectedIds, "centerH")}>Mid H</TextButton>
-            <TextButton className={tinyActionClass} onClick={() => alignWidgets(selectedIds, "right")}>Right</TextButton>
-            <TextButton className={tinyActionClass} onClick={() => alignWidgets(selectedIds, "bottom")}>Bottom</TextButton>
-            <TextButton className={tinyActionClass} onClick={() => alignWidgets(selectedIds, "centerV")}>Mid V</TextButton>
+            <TextButton className={tinyActionClass} onClick={() => { snapshot(); alignWidgets(selectedIds, "left"); }}>Left</TextButton>
+            <TextButton className={tinyActionClass} onClick={() => { snapshot(); alignWidgets(selectedIds, "top"); }}>Top</TextButton>
+            <TextButton className={tinyActionClass} onClick={() => { snapshot(); alignWidgets(selectedIds, "centerH"); }}>Mid H</TextButton>
+            <TextButton className={tinyActionClass} onClick={() => { snapshot(); alignWidgets(selectedIds, "right"); }}>Right</TextButton>
+            <TextButton className={tinyActionClass} onClick={() => { snapshot(); alignWidgets(selectedIds, "bottom"); }}>Bottom</TextButton>
+            <TextButton className={tinyActionClass} onClick={() => { snapshot(); alignWidgets(selectedIds, "centerV"); }}>Mid V</TextButton>
           </div>
         </PanelSection>
         <PanelSection title="Distribute">
           <div className="grid grid-cols-2 gap-1">
-            <TextButton className={tinyActionClass} disabled={selectedIds.length < 3} onClick={() => distributeWidgets(selectedIds, "horizontal")}>Horizontal</TextButton>
-            <TextButton className={tinyActionClass} disabled={selectedIds.length < 3} onClick={() => distributeWidgets(selectedIds, "vertical")}>Vertical</TextButton>
+            <TextButton className={tinyActionClass} disabled={selectedIds.length < 3} onClick={() => { snapshot(); distributeWidgets(selectedIds, "horizontal"); }}>Horizontal</TextButton>
+            <TextButton className={tinyActionClass} disabled={selectedIds.length < 3} onClick={() => { snapshot(); distributeWidgets(selectedIds, "vertical"); }}>Vertical</TextButton>
           </div>
         </PanelSection>
         <PanelSection title="Sizing">
           <div className="grid grid-cols-3 gap-1">
-            <TextButton className={tinyActionClass} disabled={selectedIds.length < 2} onClick={() => makeSameSize(selectedIds, "width")}>Same W</TextButton>
-            <TextButton className={tinyActionClass} disabled={selectedIds.length < 2} onClick={() => makeSameSize(selectedIds, "height")}>Same H</TextButton>
-            <TextButton className={tinyActionClass} disabled={selectedIds.length < 2} onClick={() => makeSameSize(selectedIds, "both")}>Both</TextButton>
+            <TextButton className={tinyActionClass} disabled={selectedIds.length < 2} onClick={() => { snapshot(); makeSameSize(selectedIds, "width"); }}>Same W</TextButton>
+            <TextButton className={tinyActionClass} disabled={selectedIds.length < 2} onClick={() => { snapshot(); makeSameSize(selectedIds, "height"); }}>Same H</TextButton>
+            <TextButton className={tinyActionClass} disabled={selectedIds.length < 2} onClick={() => { snapshot(); makeSameSize(selectedIds, "both"); }}>Both</TextButton>
           </div>
         </PanelSection>
         {commonProps.length > 0 && (
@@ -256,14 +290,22 @@ export function InspectorPanel() {
                       type="color"
                       className={colorInputClass}
                       value={typeof value === "string" ? value : "#000000"}
-                      onChange={(e) => selectedIds.forEach((id) => updateWidgetProp(id, key, e.target.value))}
+                      onChange={(e) => {
+                        snapshotBeforeEditSession(`multi:${selectedIds.join(",")}:prop:${key}`);
+                        selectedIds.forEach((id) => updateWidgetProp(id, key, e.target.value));
+                      }}
+                      onBlur={() => endEditSession(`multi:${selectedIds.join(",")}:prop:${key}`)}
                     />
                   ) : (
                     <TextInput
                       type={spec.type === "number" ? "number" : "text"}
                       value={value !== undefined ? String(value) : ""}
                       placeholder="(mixed)"
-                      onChange={(e) => selectedIds.forEach((id) => updateWidgetProp(id, key, spec.type === "number" ? Number(e.target.value) : e.target.value))}
+                      onChange={(e) => {
+                        snapshotBeforeEditSession(`multi:${selectedIds.join(",")}:prop:${key}`);
+                        selectedIds.forEach((id) => updateWidgetProp(id, key, spec.type === "number" ? Number(e.target.value) : e.target.value));
+                      }}
+                      onBlur={() => endEditSession(`multi:${selectedIds.join(",")}:prop:${key}`)}
                     />
                   )}
                 </FieldLabel>
@@ -297,16 +339,26 @@ export function InspectorPanel() {
               <TextInput
                 type="number"
                 value={canvasWidth}
-                onChange={(e) => setCanvasSize(parseInt(e.target.value, 10) || 800, canvasHeight)}
-                onBlur={() => snapshot()}
+                onChange={(e) => {
+                  const nextWidth = parseInt(e.target.value, 10) || 800;
+                  if (snapshotBeforeValueChange("root:width", canvasWidth, nextWidth)) {
+                    setCanvasSize(nextWidth, canvasHeight);
+                  }
+                }}
+                onBlur={() => endEditSession("root:width")}
               />
             </FieldLabel>
             <FieldLabel label="Height">
               <TextInput
                 type="number"
                 value={canvasHeight}
-                onChange={(e) => setCanvasSize(canvasWidth, parseInt(e.target.value, 10) || 600)}
-                onBlur={() => snapshot()}
+                onChange={(e) => {
+                  const nextHeight = parseInt(e.target.value, 10) || 600;
+                  if (snapshotBeforeValueChange("root:height", canvasHeight, nextHeight)) {
+                    setCanvasSize(canvasWidth, nextHeight);
+                  }
+                }}
+                onBlur={() => endEditSession("root:height")}
               />
             </FieldLabel>
           </div>
@@ -315,8 +367,12 @@ export function InspectorPanel() {
               type="color"
               className={colorInputClass}
               value={rootBg || "#f0f0f0"}
-              onChange={(e) => setRootBg(e.target.value)}
-              onBlur={() => snapshot()}
+              onChange={(e) => {
+                if (snapshotBeforeValueChange("root:bg", rootBg || "#f0f0f0", e.target.value)) {
+                  setRootBg(e.target.value);
+                }
+              }}
+              onBlur={() => endEditSession("root:bg")}
             />
           </FieldLabel>
           <label className="flex h-7 items-center gap-2 text-[11px] text-[var(--td-text-muted)]">
@@ -325,15 +381,23 @@ export function InspectorPanel() {
               className="accent-[var(--td-accent)]"
               checked={rootResizable}
               onChange={(e) => {
-                setRootResizable(e.target.checked);
                 snapshot();
+                setRootResizable(e.target.checked);
               }}
             />
             Resizable
           </label>
         </PanelSection>
         <PanelSection title="Theme">
-          <SelectInput value={tkTheme} onChange={(e) => setTkTheme(e.target.value)}>
+          <SelectInput
+            value={tkTheme}
+            onChange={(e) => {
+              if (e.target.value !== tkTheme) {
+                snapshot();
+                setTkTheme(e.target.value);
+              }
+            }}
+          >
             <option value="default">Default</option>
             <option value="clam">Clam</option>
             <option value="alt">Alt</option>
@@ -354,7 +418,15 @@ export function InspectorPanel() {
           ) : (
             <>
               <div className="flex gap-1">
-                <TextButton className="flex-1 justify-center" onClick={() => addMenu("Menu")}>Add Menu</TextButton>
+                <TextButton
+                  className="flex-1 justify-center"
+                  onClick={() => {
+                    snapshot();
+                    addMenu("Menu");
+                  }}
+                >
+                  Add Menu
+                </TextButton>
                 <TextButton
                   variant="danger"
                   onClick={() => {
@@ -372,8 +444,12 @@ export function InspectorPanel() {
                       <TextInput
                         className="flex-1"
                         value={menu.label}
-                        onChange={(e) => renameMenu(menu.id, e.target.value)}
-                        onBlur={() => snapshot()}
+                        onChange={(e) => {
+                          if (snapshotBeforeValueChange(`menu:${menu.id}:label`, menu.label, e.target.value)) {
+                            renameMenu(menu.id, e.target.value);
+                          }
+                        }}
+                        onBlur={() => endEditSession(`menu:${menu.id}:label`)}
                       />
                       <TextButton
                         variant="danger"
@@ -408,15 +484,23 @@ export function InspectorPanel() {
                               className="flex-1"
                               value={item.label}
                               placeholder="Label"
-                              onChange={(e) => updateMenuItem(menu.id, item.id, { label: e.target.value })}
-                              onBlur={() => snapshot()}
+                              onChange={(e) => {
+                                if (snapshotBeforeValueChange(`menu:${menu.id}:item:${item.id}:label`, item.label, e.target.value)) {
+                                  updateMenuItem(menu.id, item.id, { label: e.target.value });
+                                }
+                              }}
+                              onBlur={() => endEditSession(`menu:${menu.id}:item:${item.id}:label`)}
                             />
                             <TextInput
                               className="w-16"
                               value={item.accelerator ?? ""}
                               placeholder="Ctrl+..."
-                              onChange={(e) => updateMenuItem(menu.id, item.id, { accelerator: e.target.value })}
-                              onBlur={() => snapshot()}
+                              onChange={(e) => {
+                                if (snapshotBeforeValueChange(`menu:${menu.id}:item:${item.id}:accelerator`, item.accelerator ?? "", e.target.value)) {
+                                  updateMenuItem(menu.id, item.id, { accelerator: e.target.value });
+                                }
+                              }}
+                              onBlur={() => endEditSession(`menu:${menu.id}:item:${item.id}:accelerator`)}
                             />
                             <TextButton
                               variant="danger"
@@ -433,7 +517,16 @@ export function InspectorPanel() {
                       )}
                     </div>
                     <div className="mt-1 flex gap-2">
-                      <button type="button" className="text-[10px] text-cyan-200 hover:text-cyan-100" onClick={() => addMenuItem(menu.id, "Item")}>Add Item</button>
+                      <button
+                        type="button"
+                        className="text-[10px] text-cyan-200 hover:text-cyan-100"
+                        onClick={() => {
+                          snapshot();
+                          addMenuItem(menu.id, "Item");
+                        }}
+                      >
+                        Add Item
+                      </button>
                       <button type="button" className="text-[10px] text-[var(--td-text-muted)] hover:text-[var(--td-text)]" onClick={() => addMenuSeparator(menu.id)}>Add Separator</button>
                     </div>
                   </div>
@@ -460,8 +553,13 @@ export function InspectorPanel() {
           <TextInput
             className="font-mono"
             value={widget.name}
-            onChange={(e) => renameWidget(widget.id, sanitizeWidgetName(e.target.value))}
-            onBlur={() => snapshot()}
+            onChange={(e) => {
+              const nextName = sanitizeWidgetName(e.target.value);
+              if (snapshotBeforeValueChange(`widget:${widget.id}:name`, widget.name, nextName)) {
+                renameWidget(widget.id, nextName);
+              }
+            }}
+            onBlur={() => endEditSession(`widget:${widget.id}:name`)}
           />
         </FieldLabel>
         <div className="mt-2 grid grid-cols-5 gap-1">
@@ -513,17 +611,18 @@ export function InspectorPanel() {
                   <TextInput
                     type="number"
                     value={widget[key]}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value === null) return;
-                      if (key === "x" || key === "y") {
-                        moveWidget(widget.id, key === "x" ? value : widget.x, key === "y" ? value : widget.y);
-                      } else {
-                        resizeWidget(widget.id, key === "width" ? value : widget.width, key === "height" ? value : widget.height);
-                      }
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value === null) return;
+                      if (!snapshotBeforeValueChange(`widget:${widget.id}:geometry:${key}`, widget[key], value)) return;
+	                      if (key === "x" || key === "y") {
+	                        moveWidget(widget.id, key === "x" ? value : widget.x, key === "y" ? value : widget.y);
+	                      } else {
+	                        resizeWidget(widget.id, key === "width" ? value : widget.width, key === "height" ? value : widget.height);
+	                      }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:geometry:${key}`)}
+	                  />
                 </FieldLabel>
               ))}
             </div>
@@ -535,48 +634,56 @@ export function InspectorPanel() {
                     type="number"
                     min={1}
                     value={widget.gridRow ?? 1}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value !== null && value >= 1) updateGridLayout(widget.id, { gridRow: value });
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value !== null && value >= 1 && snapshotBeforeValueChange(`widget:${widget.id}:grid:row`, widget.gridRow ?? 1, value)) {
+                          updateGridLayout(widget.id, { gridRow: value });
+                        }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:grid:row`)}
+	                  />
                 </FieldLabel>
                 <FieldLabel label="Column">
                   <TextInput
                     type="number"
                     min={1}
                     value={widget.gridCol ?? 1}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value !== null && value >= 1) updateGridLayout(widget.id, { gridCol: value });
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value !== null && value >= 1 && snapshotBeforeValueChange(`widget:${widget.id}:grid:col`, widget.gridCol ?? 1, value)) {
+                          updateGridLayout(widget.id, { gridCol: value });
+                        }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:grid:col`)}
+	                  />
                 </FieldLabel>
                 <FieldLabel label="Row Span">
                   <TextInput
                     type="number"
                     min={1}
                     value={widget.gridRowSpan ?? 1}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value !== null && value >= 1) updateGridLayout(widget.id, { gridRowSpan: value });
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value !== null && value >= 1 && snapshotBeforeValueChange(`widget:${widget.id}:grid:rowSpan`, widget.gridRowSpan ?? 1, value)) {
+                          updateGridLayout(widget.id, { gridRowSpan: value });
+                        }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:grid:rowSpan`)}
+	                  />
                 </FieldLabel>
                 <FieldLabel label="Col Span">
                   <TextInput
                     type="number"
                     min={1}
                     value={widget.gridColSpan ?? 1}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value !== null && value >= 1) updateGridLayout(widget.id, { gridColSpan: value });
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value !== null && value >= 1 && snapshotBeforeValueChange(`widget:${widget.id}:grid:colSpan`, widget.gridColSpan ?? 1, value)) {
+                          updateGridLayout(widget.id, { gridColSpan: value });
+                        }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:grid:colSpan`)}
+	                  />
                 </FieldLabel>
               </div>
               <FieldLabel label="Sticky">
@@ -604,46 +711,54 @@ export function InspectorPanel() {
                     type="number"
                     min={0}
                     value={widget.gridPadX ?? 0}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value !== null && value >= 0) updateGridLayout(widget.id, { gridPadX: value });
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value !== null && value >= 0 && snapshotBeforeValueChange(`widget:${widget.id}:grid:padX`, widget.gridPadX ?? 0, value)) {
+                          updateGridLayout(widget.id, { gridPadX: value });
+                        }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:grid:padX`)}
+	                  />
                 </FieldLabel>
                 <FieldLabel label="Pad Y">
                   <TextInput
                     type="number"
                     min={0}
                     value={widget.gridPadY ?? 0}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value !== null && value >= 0) updateGridLayout(widget.id, { gridPadY: value });
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value !== null && value >= 0 && snapshotBeforeValueChange(`widget:${widget.id}:grid:padY`, widget.gridPadY ?? 0, value)) {
+                          updateGridLayout(widget.id, { gridPadY: value });
+                        }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:grid:padY`)}
+	                  />
                 </FieldLabel>
                 <FieldLabel label="Width">
                   <TextInput
                     type="number"
                     value={widget.width}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value !== null) resizeWidget(widget.id, value, widget.height);
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value !== null && snapshotBeforeValueChange(`widget:${widget.id}:grid:width`, widget.width, value)) {
+                          resizeWidget(widget.id, value, widget.height);
+                        }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:grid:width`)}
+	                  />
                 </FieldLabel>
                 <FieldLabel label="Height">
                   <TextInput
                     type="number"
                     value={widget.height}
-                    onChange={(e) => {
-                      const value = toNumber(e.target.value);
-                      if (value !== null) resizeWidget(widget.id, widget.width, value);
-                    }}
-                    onBlur={() => snapshot()}
-                  />
+	                    onChange={(e) => {
+	                      const value = toNumber(e.target.value);
+	                      if (value !== null && snapshotBeforeValueChange(`widget:${widget.id}:grid:height`, widget.height, value)) {
+                          resizeWidget(widget.id, widget.width, value);
+                        }
+	                    }}
+                    onBlur={() => endEditSession(`widget:${widget.id}:grid:height`)}
+	                  />
                 </FieldLabel>
               </div>
             </>
@@ -692,12 +807,16 @@ export function InspectorPanel() {
               </TextButton>
               {notebookTabs.map((tab) => (
                 <div key={tab.id} className="flex items-center gap-1">
-                  <TextInput
-                    className="flex-1"
-                    value={String(tab.props.text ?? "")}
-                    onChange={(e) => updateWidgetProp(tab.id, "text", e.target.value)}
-                    onBlur={() => snapshot()}
-                  />
+	                  <TextInput
+	                    className="flex-1"
+	                    value={String(tab.props.text ?? "")}
+                    onChange={(e) => {
+                      if (snapshotBeforeValueChange(`widget:${tab.id}:tab:text`, String(tab.props.text ?? ""), e.target.value)) {
+                        updateWidgetProp(tab.id, "text", e.target.value);
+                      }
+                    }}
+                    onBlur={() => endEditSession(`widget:${tab.id}:tab:text`)}
+	                  />
                   <TextButton
                     variant="danger"
                     className="w-7 px-0"
@@ -790,8 +909,15 @@ export function InspectorPanel() {
       {fontPickerOpen && (
         <FontPicker
           value={String(widget.props.font ?? "")}
-          onChange={(value) => updateWidgetProp(widget.id, "font", value)}
-          onClose={() => setFontPickerOpen(false)}
+          onChange={(value) => {
+            if (snapshotBeforeValueChange(`widget:${widget.id}:prop:font-picker`, String(widget.props.font ?? ""), value)) {
+              updateWidgetProp(widget.id, "font", value);
+            }
+          }}
+          onClose={() => {
+            endEditSession(`widget:${widget.id}:prop:font-picker`);
+            setFontPickerOpen(false);
+          }}
         />
       )}
     </aside>

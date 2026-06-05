@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import preview, export
+from app.api import codegen, export, preview
 
 app = FastAPI(title="Tkinter Designer")
 
@@ -12,6 +12,7 @@ app.add_middleware(
 )
 
 app.include_router(preview.router, prefix="/api")
+app.include_router(codegen.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 
 
